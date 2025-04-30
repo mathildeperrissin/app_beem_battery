@@ -11,23 +11,47 @@ def load_info():
 
 df = load_info()
 
-# ================================
-# 🔧 Versions hardware
-# ================================
-st.subheader("🔧 Versions hardware")
+# =================================
+# 🗺️ Carte interactive (après filtres)
+# =================================
+st.subheader("🗺️ Carte des batteries par mode de fonctionnement")
 
+df["clean_mode"] = df["working_mode_code"].fillna("Inconnu").astype(str)
+df["clean_mode"] = df["clean_mode"].str.replace(r"^ampace_v[12]_", "", regex=True)
+
+fig_map = px.scatter_mapbox(
+    df,
+    lat="latitude",
+    lon="longitude",
+    color="clean_mode",
+    hover_name="lastname",
+    hover_data=["device_id", "hardware_version", "nb_cycles"],
+    zoom=5,
+    height=600
+)
+
+fig_map.update_layout(mapbox_style="open-street-map")
+fig_map.update_layout(margin={"r":0,"t":0,"l":0,"b":0})
+
+st.plotly_chart(fig_map, use_container_width=True)
+
+# =================================
+# 🔧 Versions matérielles
+# =================================
+st.subheader("🔧 Versions matérielles")
 nb_v1 = (df["hardware_version"] == "ampace_v1").sum()
 nb_v2 = (df["hardware_version"] == "ampace_v2").sum()
+
 col1, col2 = st.columns(2)
 with col1:
     st.metric("Ampace V1", nb_v1)
 with col2:
     st.metric("Ampace V2", nb_v2)
 
-# ================================
-# 🔁 Histogramme SOH | Histogramme nb_cycles
-# ================================
-st.subheader("🧩 État de santé et nombre de cycles")
+# =================================
+# 🧩 État de santé et cycles
+# =================================
+st.subheader("🧩 État de santé et cycles")
 
 df["global_soh"] = pd.to_numeric(df["global_soh"], errors="coerce")
 df["nb_cycles"] = pd.to_numeric(df["nb_cycles"], errors="coerce").fillna(0)
@@ -52,9 +76,9 @@ with col4:
     )
     st.plotly_chart(fig_cycles, use_container_width=True)
 
-# ================================
-# 🔋 Camembert nb_modules
-# ================================
+# =================================
+# 🔋 Répartition du nombre de modules
+# =================================
 st.subheader("🔋 Répartition du nombre de modules")
 
 fig_modules = px.pie(
@@ -64,16 +88,11 @@ fig_modules = px.pie(
 )
 st.plotly_chart(fig_modules, use_container_width=True)
 
-# ================================
-# ⚙️ Working mode : par version
-# ================================
-st.subheader("⚙️ Répartition des modes de fonctionnement par version")
+# =================================
+# ⚙️ Répartition des modes de fonctionnement par version
+# =================================
+st.subheader("⚙️ Modes de fonctionnement par version")
 
-# Nettoyer les codes pour retirer le préfixe ampace_v1_ / ampace_v2_
-df["clean_mode"] = df["working_mode_code"].fillna("inconnu").astype(str)
-df["clean_mode"] = df["clean_mode"].str.replace(r"^ampace_v[12]_", "", regex=True)
-
-# Camemberts par version
 df_v1 = df[df["hardware_version"] == "ampace_v1"]
 df_v2 = df[df["hardware_version"] == "ampace_v2"]
 
