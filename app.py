@@ -11,32 +11,10 @@ def load_info():
 
 df = load_info()
 
-# 🎛️ Filtres : par device_id ou lastname
-st.subheader("🎛️ Filtrage des données")
-
-col_filtre1, col_filtre2 = st.columns(2)
-
-with col_filtre1:
-    device_ids = sorted(df["device_id"].dropna().unique().tolist())
-    selected_device = st.selectbox("🔌 Filtrer par device_id", device_ids)
-
-
-with col_filtre2:
-    lastnames = sorted(df["lastname"].dropna().unique().tolist())
-    selected_names = st.multiselect("👤 Ou filtrer par nom (lastname)", lastnames)
-
-# Appliquer le filtre (device_id OU lastname si sélectionné)
-# Appliquer le filtre (lastname prioritaire)
-if selected_names:
-    df = df[df["lastname"].isin(selected_names)]
-else:
-    df = df[df["device_id"] == selected_device]
-
-
 # ================================
-# 🔧 Versions matérielles
+# 🔧 Versions hardware
 # ================================
-st.subheader("🔧 Versions matérielles")
+st.subheader("🔧 Versions hardware")
 
 nb_v1 = (df["hardware_version"] == "ampace_v1").sum()
 nb_v2 = (df["hardware_version"] == "ampace_v2").sum()
@@ -49,7 +27,7 @@ with col2:
 # ================================
 # 🔁 Histogramme SOH | Histogramme nb_cycles
 # ================================
-st.subheader("🧩 État de santé et cycles")
+st.subheader("🧩 État de santé et nombre de cycles")
 
 df["global_soh"] = pd.to_numeric(df["global_soh"], errors="coerce")
 df["nb_cycles"] = pd.to_numeric(df["nb_cycles"], errors="coerce").fillna(0)
