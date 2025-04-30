@@ -94,9 +94,14 @@ def load_monthly_data():
     df_obj = pd.read_csv("objective_battery.csv")
     df_prod = pd.read_csv("monthly_production_battery.csv")
 
-    if "month" not in df_prod.columns:
-        df_prod["date"] = pd.to_datetime(df_prod["date"])
-        df_prod["month"] = df_prod["date"].dt.month
+    df_prod["date"] = pd.to_datetime(df_prod["date"])
+    df_prod["month"] = df_prod["date"].dt.month
+    df_prod["year"] = df_prod["date"].dt.year
+
+    # 🔄 Pour chaque mois, on garde l'année la plus récente
+    latest_per_month = df_prod.groupby("month")["year"].max().reset_index()
+    df_prod = pd.merge(df_prod, latest_per_month, on=["month", "year"], how="inner")
+
 
     df_obj = df_obj[df_obj["battery_id"] == selected_device]
     df_prod = df_prod[df_prod["battery_id"] == selected_device]
