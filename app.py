@@ -11,6 +11,25 @@ def load_info():
 
 df = load_info()
 
+# 🎛️ Filtres : par device_id ou lastname
+st.subheader("🎛️ Filtrage des données")
+
+col_filtre1, col_filtre2 = st.columns(2)
+
+with col_filtre1:
+    device_ids = sorted(df["device_id"].dropna().unique().tolist())
+    selected_devices = st.multiselect("🔌 Filtrer par device_id", device_ids, default=device_ids)
+
+with col_filtre2:
+    lastnames = sorted(df["lastname"].dropna().unique().tolist())
+    selected_names = st.multiselect("👤 Ou filtrer par nom (lastname)", lastnames)
+
+# Appliquer le filtre (device_id OU lastname si sélectionné)
+if selected_names:
+    df = df[df["lastname"].isin(selected_names)]
+else:
+    df = df[df["device_id"].isin(selected_devices)]
+
 # ================================
 # 🔧 Versions matérielles
 # ================================
