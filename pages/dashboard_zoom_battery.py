@@ -11,21 +11,34 @@ st.title("🔍 Dashboard Zoom sur une batterie")
 def load_infos():
     return pd.read_csv("battery_actives_infos.csv")
 
-infos_df = load_infos()
+infos_df = load_infos().dropna(subset=["device_id"])
 
-# ========== 🔌 Filtre par device ==========
-device_ids = sorted(infos_df["device_id"].dropna().unique().tolist())
-selected_device = st.selectbox("Choisir un device_id", device_ids)
+# ========== 🔍 Filtres lastname + device ==========
+st.subheader("🎛️ Filtrage")
 
-# Extraire les infos associées
+col_a, col_b = st.columns(2)
+
+with col_a:
+    lastnames = sorted(infos_df["lastname"].dropna().unique().tolist())
+    selected_name = st.selectbox("👤 Filtrer par nom (lastname)", [""] + lastnames)
+
+if selected_name:
+    filtered_df = infos_df[infos_df["lastname"] == selected_name]
+else:
+    filtered_df = infos_df
+
+with col_b:
+    available_devices = sorted(filtered_df["device_id"].unique().tolist())
+    selected_device = st.selectbox("🔌 Choisir un device_id", available_devices)
+
+# ========== 🎯 Infos du device sélectionné ==========
 device_info = infos_df[infos_df["device_id"] == selected_device]
 
-# Si aucune info, afficher un message
 if device_info.empty:
     st.warning("Aucune information trouvée pour ce device.")
     st.stop()
 
-# ========== 🧾 Affichage des infos ===================
+# ========== 🧾 Informations techniques ================
 st.subheader("🔧 Informations techniques")
 
 col1, col2, col3 = st.columns(3)
@@ -44,15 +57,17 @@ with col5:
     mode_clean = mode_clean.replace("ampace_v1_", "").replace("ampace_v2_", "")
     st.metric("Mode de fonctionnement", mode_clean)
 
-# ========== 🗺️ Carte avec localisation ==========
-st.subheader("📍 Localisation")
+# ========== 🗺️ Carte interactive ================
+st.subheader("📍 Localisation de la batterie")
 
-device_info["point_size"] = 20  
+device_info["point_size"] = 20
+
 fig_map = px.scatter_mapbox(
     device_info,
     lat="latitude",
     lon="longitude",
-    size="point_size", 
+    size="point_size",
+    size_max=30,
     zoom=5,
     height=400,
     hover_name="lastname"
@@ -60,7 +75,7 @@ fig_map = px.scatter_mapbox(
 fig_map.update_layout(mapbox_style="open-street-map", margin={"r":0,"t":0,"l":0,"b":0})
 st.plotly_chart(fig_map, use_container_width=True)
 
-# ========== 📅 Filtres temporels ==========
+# ========== 📅 Filtres temporels ================
 st.subheader("⏱️ Plage de temps pour les courbes")
 
 col1, col2 = st.columns(2)
@@ -78,7 +93,7 @@ with col4:
 start_datetime = datetime.combine(start_date, start_time)
 end_datetime = datetime.combine(end_date, end_time)
 
-# ========== 📈 Courbes multi-sources ==========
+# ========== 📈 Courbes multi-sources ================
 sources = {
     "battery_active_energy_measure.csv": {
         "title": "Consommation infra-journalière",
