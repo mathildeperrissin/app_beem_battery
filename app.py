@@ -32,8 +32,8 @@ device_choices = st.multiselect("Sélectionner un ou plusieurs devices", device_
 # 🔍 Filtrer les données
 filtered_df = df[
     (df["device_id"].isin(device_choices)) &
-    (df["date"] >= start_datetime) &
-    (df["date"] <= end_datetime)
+    (df["date"].dt.tz_localize(None) >= start_datetime) &
+    (df["date"].dt.tz_localize(None) <= end_datetime)
 ]
 
 # 📈 Afficher le graphique
