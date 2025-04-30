@@ -6,7 +6,7 @@ import plotly.express as px
 st.set_page_config(page_title="Zoom Battery", layout="wide")
 st.title("🔍 Dashboard Zoom sur une batterie")
 
-# ========== 📦 Charger la table infos batteries ==========
+# ========== 📦 Charger infos batteries ==========
 @st.cache_data
 def load_infos():
     return pd.read_csv("battery_actives_infos.csv")
@@ -16,7 +16,6 @@ infos_df = load_infos().dropna(subset=["device_id"])
 # ========== 🎛️ Filtres liés : lastname / serial_number / device_id ==========
 st.subheader("🎛️ Filtrage batterie (lié par nom / n° série / device)")
 
-# Menus déroulants complets
 lastnames = sorted(infos_df["lastname"].dropna().unique().tolist())
 serials = sorted(infos_df["serial_number"].dropna().unique().tolist())
 
@@ -26,7 +25,6 @@ with col1:
 with col2:
     selected_serial = st.selectbox("🔢 Numéro de série", [""] + serials)
 
-# Filtrage des devices disponibles
 filtered_df = infos_df.copy()
 if selected_name:
     filtered_df = filtered_df[filtered_df["lastname"] == selected_name]
@@ -39,7 +37,6 @@ if not available_devices:
     st.warning("Aucune correspondance pour cette combinaison.")
     st.stop()
 
-# Sélection du device_id filtré
 selected_device = st.selectbox("🔌 Choisir un device_id", available_devices)
 
 # Affichage infos liées
@@ -71,7 +68,7 @@ with col5:
     mode_clean = mode_clean.replace("ampace_v1_", "").replace("ampace_v2_", "")
     st.metric("Mode de fonctionnement", mode_clean)
 
-# ========== 🗺️ Carte interactive ==========
+# ========== 🗺️ Carte ==========
 st.subheader("📍 Localisation de la batterie")
 
 device_info["point_size"] = 20
@@ -88,6 +85,58 @@ fig_map = px.scatter_mapbox(
 )
 fig_map.update_layout(mapbox_style="open-street-map", margin={"r":0,"t":0,"l":0,"b":0})
 st.plotly_chart(fig_map, use_container_width=True)
+
+# ========== 📊 Comparaison Objectif vs Mesuré ==========
+st.subheader("📊 Comparaison production (objective vs mesurée)")
+
+@st.cache_data
+def load_monthly_data():
+    df_obj = pd.read_csv("objective_battery.csv")
+    df_prod = pd.read_csv("monthly_production_battery.csv")
+
+    if "month" not in df_prod.columns:
+        df_prod["date"] = pd.to_datetime(df_prod["date"])
+        df_prod["month"] = df_prod["date"].dt.month
+
+    df_obj = df_obj[df_obj["battery_id"] == selected_device]
+    df_prod = df_prod[df_prod["battery_id"] == selected_device]
+
+    agg_obj = df_obj.groupby("month")["value"].sum().reset_index()
+    agg_obj.rename(columns={"value": "objective"}, inplace=True)
+
+    agg_prod = df_prod.groupby("month")["watt_hours"].sum().reset_index()
+    agg_prod.rename(columns={"watt_hours": "measured"}, inplace=True)
+
+    df_merge = pd.merge(agg_obj, agg_prod, on="month", how="outer").sort_values("month").fillna(0)
+    df_melted = df_merge.melt(id_vars="month", var_name="Source", value_name="Wh")
+
+    return df_melted, df_merge
+
+df_comparaison, df_pivot = load_monthly_data()
+
+fig_comp = px.bar(
+    df_comparaison,
+    x="month",
+    y="Wh",
+    color="Source",
+    barmode="group",
+    title="Comparaison mensuelle : Objectif vs Production réelle",
+    labels={"month": "Mois", "Wh": "Énergie (Wh)"}
+)
+st.plotly_chart(fig_comp, use_container_width=True)
+
+# ========== 📋 Taux de réalisation (%)
+st.subheader("📋 Taux de réalisation par mois (%)")
+
+df_pivot["Taux de réalisation (%)"] = (
+    (df_pivot["measured"] / df_pivot["objective"]) * 100
+).round(1).replace([float("inf"), -float("inf")], 0).fillna(0)
+
+st.dataframe(
+    df_pivot[["month", "objective", "measured", "Taux de réalisation (%)"]],
+    use_container_width=True,
+    height=400
+)
 
 # ========== 📅 Filtres temporels ==========
 st.subheader("⏱️ Plage de temps pour les courbes")
