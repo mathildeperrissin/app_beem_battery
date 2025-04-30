@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-import matplotlib.pyplot as plt
+import plotly.express as px
 
 st.set_page_config(page_title="Infos Batteries", layout="wide")
 st.title("📋 Informations batteries")
@@ -12,65 +12,66 @@ def load_info():
 df = load_info()
 
 # ================================
-# 🔹 1. Compter les hardware_version
+# 🔧 Versions matérielles
 # ================================
 st.subheader("🔧 Versions matérielles")
-
+col1, col2 = st.columns(2)
 nb_v1 = (df["hardware_version"] == "ampace_v1").sum()
 nb_v2 = (df["hardware_version"] == "ampace_v2").sum()
 
-col1, col2 = st.columns(2)
 with col1:
     st.metric("Ampace V1", nb_v1)
 with col2:
     st.metric("Ampace V2", nb_v2)
 
 # ================================
-# 🔸 2. Camembert : Répartition du global_soh
+# 🧩 Répartition du Global SOH
 # ================================
 st.subheader("🧩 Répartition du Global SOH (%)")
 
-fig1, ax1 = plt.subplots()
-df["global_soh"] = df["global_soh"].fillna("inconnu")
+df["global_soh"] = pd.to_numeric(df["global_soh"], errors="coerce")
 df["global_soh_binned"] = pd.cut(df["global_soh"], bins=[0, 60, 70, 80, 90, 100], right=False)
-df["global_soh_binned"] = df["global_soh_binned"].astype(str)
-df_soh = df["global_soh_binned"].value_counts()
-ax1.pie(df_soh, labels=df_soh.index, autopct='%1.1f%%')
-ax1.axis('equal')
-st.pyplot(fig1)
+df_soh = df["global_soh_binned"].value_counts().sort_index()
+fig_soh = px.pie(
+    names=df_soh.index.astype(str),
+    values=df_soh.values,
+    title="Répartition des batteries par tranche de SOH (%)",
+)
+st.plotly_chart(fig_soh, use_container_width=True)
 
 # ================================
-# 🔸 3. Histogramme du nb_cycles
+# 🔁 Histogramme du nb_cycles
 # ================================
-st.subheader("🔁 Répartition des cycles (nb_cycles)")
+st.subheader("🔁 Répartition du nombre de cycles (nb_cycles)")
 
-fig2, ax2 = plt.subplots()
-df["nb_cycles"] = df["nb_cycles"].fillna(0)
-ax2.hist(df["nb_cycles"], bins=20, color='skyblue', edgecolor='black')
-ax2.set_xlabel("Nombre de cycles")
-ax2.set_ylabel("Nombre de batteries")
-st.pyplot(fig2)
+df["nb_cycles"] = pd.to_numeric(df["nb_cycles"], errors="coerce").fillna(0)
+fig_cycles = px.histogram(
+    df, x="nb_cycles", nbins=20,
+    title="Histogramme du nombre de cycles",
+    labels={"nb_cycles": "Nombre de cycles"},
+)
+st.plotly_chart(fig_cycles, use_container_width=True)
 
 # ================================
-# 🔸 4. Camembert nb_modules
+# 🔋 Répartition du nb_modules
 # ================================
 st.subheader("🔋 Répartition du nombre de modules")
 
-fig3, ax3 = plt.subplots()
-df["nb_modules"] = df["nb_modules"].fillna("inconnu")
-df_modules = df["nb_modules"].value_counts()
-ax3.pie(df_modules, labels=df_modules.index, autopct='%1.1f%%')
-ax3.axis('equal')
-st.pyplot(fig3)
+fig_modules = px.pie(
+    names=df["nb_modules"].fillna("Inconnu").astype(str).value_counts().index,
+    values=df["nb_modules"].fillna("Inconnu").astype(str).value_counts().values,
+    title="Répartition des batteries selon le nombre de modules",
+)
+st.plotly_chart(fig_modules, use_container_width=True)
 
 # ================================
-# 🔸 5. Camembert du working_mode_code
+# ⚙️ Répartition du working_mode_code
 # ================================
-st.subheader("⚙️ Répartition des working_mode_code")
+st.subheader("⚙️ Répartition des modes de fonctionnement (working_mode_code)")
 
-fig4, ax4 = plt.subplots()
-df["working_mode_code"] = df["working_mode_code"].fillna("inconnu")
-df_working = df["working_mode_code"].value_counts()
-ax4.pie(df_working, labels=df_working.index, autopct='%1.1f%%')
-ax4.axis('equal')
-st.pyplot(fig4)
+fig_modes = px.pie(
+    names=df["working_mode_code"].fillna("Inconnu").astype(str).value_counts().index,
+    values=df["working_mode_code"].fillna("Inconnu").astype(str).value_counts().values,
+    title="Répartition par code de mode de fonctionnement",
+)
+st.plotly_chart(fig_modes, use_container_width=True)
