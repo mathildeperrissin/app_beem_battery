@@ -19,13 +19,16 @@ st.subheader("🗺️ Carte des batteries par mode de fonctionnement")
 df["clean_mode"] = df["working_mode_code"].fillna("Inconnu").astype(str)
 df["clean_mode"] = df["clean_mode"].str.replace(r"^ampace_v[12]_", "", regex=True)
 
+df["point_size"] = 10  
+
+
 fig_map = px.scatter_mapbox(
     df,
     lat="latitude",
     lon="longitude",
     color="clean_mode",
     hover_name="lastname",
-    size=10,
+    size="point_size",
     hover_data=["device_id", "hardware_version", "nb_cycles"],
     zoom=5,
     height=600
