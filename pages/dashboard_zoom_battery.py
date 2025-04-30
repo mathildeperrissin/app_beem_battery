@@ -47,23 +47,8 @@ ligne = infos_df[infos_df["device_id"] == selected_device].iloc[0]
 st.info(
     f"👤 Utilisateur associé : **{ligne['lastname']}**\n\n"
     f"🔢 Numéro de série : **{ligne['serial_number']}**\n\n"
-    f
-
-
-# Sélection finale du device
-if filtered_df.empty:
-    st.warning("Aucune correspondance pour cette combinaison.")
-    st.stop()
-else:
-    selected_device = filtered_df["device_id"].iloc[0]
-    nom_associe = filtered_df["lastname"].iloc[0]
-    serial_associe = filtered_df["serial_number"].iloc[0]
-
-    st.info(
-        f"👤 Utilisateur associé : **{nom_associe}**\n\n"
-        f"🔢 Numéro de série : **{serial_associe}**\n\n"
-        f"🔌 device_id sélectionné : **{selected_device}**"
-    )
+    f"🔌 device_id sélectionné : **{selected_device}**"
+)
 
 # ========== 🧾 Informations techniques ==========
 device_info = infos_df[infos_df["device_id"] == selected_device]
