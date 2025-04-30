@@ -16,29 +16,39 @@ infos_df = load_infos().dropna(subset=["device_id"])
 # ========== 🎛️ Filtres liés : lastname / serial_number / device_id ==========
 st.subheader("🎛️ Filtrage batterie (lié par nom / n° série / device)")
 
-# Menus déroulants
+# Menus déroulants complets
 lastnames = sorted(infos_df["lastname"].dropna().unique().tolist())
 serials = sorted(infos_df["serial_number"].dropna().unique().tolist())
-device_ids = sorted(infos_df["device_id"].dropna().unique().tolist())
 
-col1, col2, col3 = st.columns(3)
-
+col1, col2 = st.columns(2)
 with col1:
     selected_name = st.selectbox("👤 Nom (lastname)", [""] + lastnames)
 with col2:
     selected_serial = st.selectbox("🔢 Numéro de série", [""] + serials)
-with col3:
-    selected_device_input = st.selectbox("🔌 device_id", device_ids)
 
-# Appliquer les filtres croisés
+# Filtrage des devices disponibles
 filtered_df = infos_df.copy()
-
 if selected_name:
     filtered_df = filtered_df[filtered_df["lastname"] == selected_name]
 if selected_serial:
     filtered_df = filtered_df[filtered_df["serial_number"] == selected_serial]
-if selected_device_input:
-    filtered_df = filtered_df[filtered_df["device_id"] == selected_device_input]
+
+available_devices = sorted(filtered_df["device_id"].dropna().unique().tolist())
+
+if not available_devices:
+    st.warning("Aucune correspondance pour cette combinaison.")
+    st.stop()
+
+# Sélection du device_id filtré
+selected_device = st.selectbox("🔌 Choisir un device_id", available_devices)
+
+# Affichage infos liées
+ligne = infos_df[infos_df["device_id"] == selected_device].iloc[0]
+st.info(
+    f"👤 Utilisateur associé : **{ligne['lastname']}**\n\n"
+    f"🔢 Numéro de série : **{ligne['serial_number']}**\n\n"
+    f
+
 
 # Sélection finale du device
 if filtered_df.empty:
