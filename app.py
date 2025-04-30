@@ -18,17 +18,20 @@ col_filtre1, col_filtre2 = st.columns(2)
 
 with col_filtre1:
     device_ids = sorted(df["device_id"].dropna().unique().tolist())
-    selected_devices = st.multiselect("🔌 Filtrer par device_id", device_ids, default=device_ids)
+    selected_device = st.selectbox("🔌 Filtrer par device_id", device_ids)
+
 
 with col_filtre2:
     lastnames = sorted(df["lastname"].dropna().unique().tolist())
     selected_names = st.multiselect("👤 Ou filtrer par nom (lastname)", lastnames)
 
 # Appliquer le filtre (device_id OU lastname si sélectionné)
+# Appliquer le filtre (lastname prioritaire)
 if selected_names:
     df = df[df["lastname"].isin(selected_names)]
 else:
-    df = df[df["device_id"].isin(selected_devices)]
+    df = df[df["device_id"] == selected_device]
+
 
 # ================================
 # 🔧 Versions matérielles
