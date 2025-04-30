@@ -69,4 +69,9 @@ with col5:
     st.plotly_chart(fig_modules, use_container_width=True)
 
 with col6:
-    fig_modes =_
+    fig_modes = px.pie(
+        names=df["working_mode_code"].fillna("Inconnu").astype(str).value_counts().index,
+        values=df["working_mode_code"].fillna("Inconnu").astype(str).value_counts().values,
+        title="Répartition des modes de fonctionnement",
+    )
+    st.plotly_chart(fig_modes, use_container_width=True)
