@@ -25,6 +25,7 @@ fig_map = px.scatter_mapbox(
     lon="longitude",
     color="clean_mode",
     hover_name="lastname",
+    size=10,
     hover_data=["device_id", "hardware_version", "nb_cycles"],
     zoom=5,
     height=600
