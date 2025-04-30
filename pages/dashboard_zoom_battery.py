@@ -47,10 +47,12 @@ with col5:
 # ========== 🗺️ Carte avec localisation ==========
 st.subheader("📍 Localisation")
 
+device_info["point_size"] = 20  
 fig_map = px.scatter_mapbox(
     device_info,
     lat="latitude",
     lon="longitude",
+    size="point_size", 
     zoom=5,
     height=400,
     hover_name="lastname"
