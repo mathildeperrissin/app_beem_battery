@@ -1,100 +1,76 @@
 import streamlit as st
 import pandas as pd
-from datetime import datetime
+import matplotlib.pyplot as plt
 
-st.set_page_config(layout="wide")
-st.title("Dashboard batteries")
+st.set_page_config(page_title="Infos Batteries", layout="wide")
+st.title("📋 Informations batteries")
 
-# -------- Choix de la page --------
-page = st.sidebar.selectbox("📄 Choisir une page", ["Page 1 : Dashboard global", "Page 2 : Dashboard zoom battery"])
+@st.cache_data
+def load_info():
+    return pd.read_csv("battery_actives_infos.csv")
 
-# -------- Page 1 --------
-if page == "Page 1 : Dashboard global":
-    st.header("📋 Informations batteries (battery_actives_infos.csv)")
+df = load_info()
 
-    @st.cache_data
-    def load_info():
-        df = pd.read_csv("battery_actives_infos.csv")
-        return df
+# ================================
+# 🔹 1. Compter les hardware_version
+# ================================
+st.subheader("🔧 Versions matérielles")
 
-    df_infos = load_info()
-    st.dataframe(df_infos)
+nb_v1 = (df["hardware_version"] == "ampace_v1").sum()
+nb_v2 = (df["hardware_version"] == "ampace_v2").sum()
 
-# -------- Page 2 --------
-elif page == "Page 2 : Dashboard zoom battery":
-    st.header("📈 Données énergétiques détaillées")
+col1, col2 = st.columns(2)
+with col1:
+    st.metric("Ampace V1", nb_v1)
+with col2:
+    st.metric("Ampace V2", nb_v2)
 
-    sources = {
-        "battery_active_energy_measure.csv": {
-            "title": "Consommation infra-journalière",
-            "y_label": "Wh par batterie",
-            "agg": False,
-        },
-        "battery_active_returned_energy_meter_measure.csv": {
-            "title": "Ré-injection infra-journalière",
-            "y_label": "Wh par batterie",
-            "agg": False,
-        },
-        "battery_active_returned_energy_measure.csv": {
-            "title": "Mesure de production solaire",
-            "y_label": "Wh total (somme MPPT)",
-            "agg": True,
-        },
-        "battery_energy_charged_measure.csv": {
-            "title": "Énergie stockée par la batterie",
-            "y_label": "Wh",
-            "agg": False,
-        },
-        "battery_energy_discharged_measure.csv": {
-            "title": "Énergie déstockée par la batterie",
-            "y_label": "Wh",
-            "agg": False,
-        },
-    }
+# ================================
+# 🔸 2. Camembert : Répartition du global_soh
+# ================================
+st.subheader("🧩 Répartition du Global SOH (%)")
 
-    col1, col2 = st.columns(2)
-    with col1:
-        start_date = st.date_input("📅 Date de début", datetime(2025, 4, 1))
-    with col2:
-        end_date = st.date_input("📅 Date de fin", datetime(2025, 4, 30))
+fig1, ax1 = plt.subplots()
+df["global_soh"] = df["global_soh"].fillna("inconnu")
+df["global_soh_binned"] = pd.cut(df["global_soh"], bins=[0, 60, 70, 80, 90, 100], right=False)
+df["global_soh_binned"] = df["global_soh_binned"].astype(str)
+df_soh = df["global_soh_binned"].value_counts()
+ax1.pie(df_soh, labels=df_soh.index, autopct='%1.1f%%')
+ax1.axis('equal')
+st.pyplot(fig1)
 
-    col3, col4 = st.columns(2)
-    with col3:
-        start_time = st.time_input("🕐 Heure de début", datetime.min.time())
-    with col4:
-        end_time = st.time_input("🕐 Heure de fin", datetime.max.time())
+# ================================
+# 🔸 3. Histogramme du nb_cycles
+# ================================
+st.subheader("🔁 Répartition des cycles (nb_cycles)")
 
-    start_datetime = datetime.combine(start_date, start_time)
-    end_datetime = datetime.combine(end_date, end_time)
+fig2, ax2 = plt.subplots()
+df["nb_cycles"] = df["nb_cycles"].fillna(0)
+ax2.hist(df["nb_cycles"], bins=20, color='skyblue', edgecolor='black')
+ax2.set_xlabel("Nombre de cycles")
+ax2.set_ylabel("Nombre de batteries")
+st.pyplot(fig2)
 
-    @st.cache_data
-    def get_all_device_ids():
-        df = pd.read_csv("battery_active_energy_measure.csv")
-        return sorted(df["device_id"].unique().tolist())
+# ================================
+# 🔸 4. Camembert nb_modules
+# ================================
+st.subheader("🔋 Répartition du nombre de modules")
 
-    device_choices = st.multiselect("🔌 Choisir une ou plusieures batteries", get_all_device_ids(), default=[41])
+fig3, ax3 = plt.subplots()
+df["nb_modules"] = df["nb_modules"].fillna("inconnu")
+df_modules = df["nb_modules"].value_counts()
+ax3.pie(df_modules, labels=df_modules.index, autopct='%1.1f%%')
+ax3.axis('equal')
+st.pyplot(fig3)
 
-    @st.cache_data
-    def load_data(filename):
-        df = pd.read_csv(filename)
-        df["date"] = pd.to_datetime(df["date"])
-        return df
+# ================================
+# 🔸 5. Camembert du working_mode_code
+# ================================
+st.subheader("⚙️ Répartition des working_mode_code")
 
-    for file, meta in sources.items():
-        df = load_data(file)
-
-        df = df[df["device_id"].isin(device_choices)]
-        df = df[(df["date"].dt.tz_localize(None) >= start_datetime) & (df["date"].dt.tz_localize(None) <= end_datetime)]
-
-        if df.empty:
-            st.warning(f"Aucune donnée pour : {meta['title']}")
-            continue
-
-        if meta["agg"] and "device_sub_id" in df.columns:
-            df = df.groupby(["date", "device_id"], as_index=False)["value"].sum()
-
-        df_chart = df.pivot(index="date", columns="device_id", values="value")
-
-        st.subheader(meta["title"])
-        st.line_chart(df_chart, use_container_width=True)
-        st.caption(f"Axe Y : {meta['y_label']}")
+fig4, ax4 = plt.subplots()
+df["working_mode_code"] = df["working_mode_code"].fillna("inconnu")
+df_working = df["working_mode_code"].value_counts()
+ax4.pie(df_working, labels=df_working.index, autopct='%1.1f%%')
+ax4.axis('equal')
+st.pyplot(fig4)
