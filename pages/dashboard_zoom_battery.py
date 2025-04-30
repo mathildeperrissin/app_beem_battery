@@ -6,39 +6,58 @@ import plotly.express as px
 st.set_page_config(page_title="Zoom Battery", layout="wide")
 st.title("🔍 Dashboard Zoom sur une batterie")
 
-# ========== 📦 Charger les données infos battery ==========
+# ========== 📦 Charger la table infos batteries ==========
 @st.cache_data
 def load_infos():
     return pd.read_csv("battery_actives_infos.csv")
 
 infos_df = load_infos().dropna(subset=["device_id"])
 
-# ========== 🔍 Filtres lastname + device ==========
-st.subheader("🎛️ Filtrage")
+# ========== 🎛️ Filtres liés : lastname / serial_number / device_id ==========
+st.subheader("🎛️ Filtrage batterie (lié par nom / n° série / device)")
 
-col_a, col_b = st.columns(2)
+# Menus déroulants
+lastnames = sorted(infos_df["lastname"].dropna().unique().tolist())
+serials = sorted(infos_df["serial_number"].dropna().unique().tolist())
+device_ids = sorted(infos_df["device_id"].dropna().unique().tolist())
 
-with col_a:
-    lastnames = sorted(infos_df["lastname"].dropna().unique().tolist())
-    selected_name = st.selectbox("👤 Filtrer par nom (lastname)", [""] + lastnames)
+col1, col2, col3 = st.columns(3)
+
+with col1:
+    selected_name = st.selectbox("👤 Nom (lastname)", [""] + lastnames)
+with col2:
+    selected_serial = st.selectbox("🔢 Numéro de série", [""] + serials)
+with col3:
+    selected_device_input = st.selectbox("🔌 device_id", device_ids)
+
+# Appliquer les filtres croisés
+filtered_df = infos_df.copy()
 
 if selected_name:
-    filtered_df = infos_df[infos_df["lastname"] == selected_name]
+    filtered_df = filtered_df[filtered_df["lastname"] == selected_name]
+if selected_serial:
+    filtered_df = filtered_df[filtered_df["serial_number"] == selected_serial]
+if selected_device_input:
+    filtered_df = filtered_df[filtered_df["device_id"] == selected_device_input]
+
+# Sélection finale du device
+if filtered_df.empty:
+    st.warning("Aucune correspondance pour cette combinaison.")
+    st.stop()
 else:
-    filtered_df = infos_df
+    selected_device = filtered_df["device_id"].iloc[0]
+    nom_associe = filtered_df["lastname"].iloc[0]
+    serial_associe = filtered_df["serial_number"].iloc[0]
 
-with col_b:
-    available_devices = sorted(filtered_df["device_id"].unique().tolist())
-    selected_device = st.selectbox("🔌 Choisir un device_id", available_devices)
+    st.info(
+        f"👤 Utilisateur associé : **{nom_associe}**\n\n"
+        f"🔢 Numéro de série : **{serial_associe}**\n\n"
+        f"🔌 device_id sélectionné : **{selected_device}**"
+    )
 
-# ========== 🎯 Infos du device sélectionné ==========
+# ========== 🧾 Informations techniques ==========
 device_info = infos_df[infos_df["device_id"] == selected_device]
 
-if device_info.empty:
-    st.warning("Aucune information trouvée pour ce device.")
-    st.stop()
-
-# ========== 🧾 Informations techniques ================
 st.subheader("🔧 Informations techniques")
 
 col1, col2, col3 = st.columns(3)
@@ -57,7 +76,7 @@ with col5:
     mode_clean = mode_clean.replace("ampace_v1_", "").replace("ampace_v2_", "")
     st.metric("Mode de fonctionnement", mode_clean)
 
-# ========== 🗺️ Carte interactive ================
+# ========== 🗺️ Carte interactive ==========
 st.subheader("📍 Localisation de la batterie")
 
 device_info["point_size"] = 20
@@ -75,7 +94,7 @@ fig_map = px.scatter_mapbox(
 fig_map.update_layout(mapbox_style="open-street-map", margin={"r":0,"t":0,"l":0,"b":0})
 st.plotly_chart(fig_map, use_container_width=True)
 
-# ========== 📅 Filtres temporels ================
+# ========== 📅 Filtres temporels ==========
 st.subheader("⏱️ Plage de temps pour les courbes")
 
 col1, col2 = st.columns(2)
@@ -93,7 +112,7 @@ with col4:
 start_datetime = datetime.combine(start_date, start_time)
 end_datetime = datetime.combine(end_date, end_time)
 
-# ========== 📈 Courbes multi-sources ================
+# ========== 📈 Courbes multi-sources ==========
 sources = {
     "battery_active_energy_measure.csv": {
         "title": "Consommation infra-journalière",
