@@ -35,13 +35,22 @@ sources = {
 }
 
 # -------- FILTRES --------
-start_date = st.date_input("📅 Date de début", datetime(2025, 4, 1))
-end_date = st.date_input("📅 Date de fin", datetime(2025, 4, 30))
-start_time = st.time_input("🕐 Heure de début", datetime.min.time())
-end_time = st.time_input("🕐 Heure de fin", datetime.max.time())
+# -------- FILTRES --------
+col1, col2 = st.columns(2)
+with col1:
+    start_date = st.date_input("📅 Date de début", datetime(2025, 4, 1))
+with col2:
+    end_date = st.date_input("📅 Date de fin", datetime(2025, 4, 30))
+
+col3, col4 = st.columns(2)
+with col3:
+    start_time = st.time_input("🕐 Heure de début", datetime.min.time())
+with col4:
+    end_time = st.time_input("🕐 Heure de fin", datetime.max.time())
 
 start_datetime = datetime.combine(start_date, start_time)
 end_datetime = datetime.combine(end_date, end_time)
+
 
 # -------- COLLECTE DES DEVICES UNIQUES --------
 @st.cache_data
