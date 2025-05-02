@@ -32,7 +32,7 @@ col1, col2 = st.columns(2)
 with col1:
     selected_name = st.selectbox("👤 Nom (lastname)", [""] + lastnames)
 with col2:
-    selected_serial = st.selectbox("🔢 Numéro de série", [""] + serials)
+    selected_serial = st.selectbox("🖟️ Numéro de série", [""] + serials)
 
 filtered_df = infos_df.copy()
 if selected_name:
@@ -52,17 +52,16 @@ selected_device = st.selectbox("🔌 Choisir un device_id", available_devices)
 ligne = infos_df[infos_df["device_id"] == selected_device].iloc[0]
 st.info(
     f"👤 Utilisateur associé : **{ligne['lastname']}**\n\n"
-    f"🔢 Numéro de série : **{ligne['serial_number']}**\n\n"
+    f"🖟️ Numéro de série : **{ligne['serial_number']}**\n\n"
     f"🔌 device_id sélectionné : **{selected_device}**"
 )
 
-
-# ========== 🧾 Informations techniques ==========
+# ========== 🨾 Informations techniques ==========
 device_info = infos_df[infos_df["device_id"] == selected_device]
 st.subheader("🔧 Informations techniques")
 created_at_str = pd.to_datetime(device_info["created_at"].values[0]).strftime("%d/%m/%Y") \
     if pd.notnull(device_info["created_at"].values[0]) else "Inconnue"
-    
+
 col1, col2, col3 = st.columns(3)
 with col1:
     st.metric("Version hardware", device_info["hardware_version"].values[0])
@@ -70,7 +69,7 @@ with col2:
     st.metric("Mise en service", created_at_str)
 with col3:
     st.metric("Nombre de cycles", int(device_info["nb_cycles"].values[0]))
-    
+
 col4, col5, col6 = st.columns(3)
 with col4:
     st.metric("Nb modules", int(device_info["nb_modules"].values[0]))
@@ -81,27 +80,7 @@ with col6:
     mode_clean = mode_clean.replace("ampace_v1_", "").replace("ampace_v2_", "")
     st.metric("Mode de fonctionnement", mode_clean)
 
-
-# ========== 🗺️ Carte ==========
-st.subheader("📍 Localisation de la batterie")
-
-device_info["point_size"] = 20
-
-fig_map = px.scatter_mapbox(
-    device_info,
-    lat="latitude",
-    lon="longitude",
-    size="point_size",
-    size_max=30,
-    zoom=5,
-    height=400,
-    hover_name="lastname"
-)
-fig_map.update_layout(mapbox_style="open-street-map", margin={"r": 0, "t": 0, "l": 0, "b": 0})
-st.plotly_chart(fig_map, use_container_width=True)
-
-# ========== 📊 Comparaison Objectif vs Mesuré ==========
-
+# ========== 📜 Comparaison Objectif vs Mesuré ==========
 @st.cache_data
 def load_monthly_data(device_id):
     device_sql = f"'{device_id}'" if isinstance(device_id, str) else str(device_id)
@@ -133,11 +112,37 @@ def load_monthly_data(device_id):
 
     return df_melted, df_merge
 
-# Appel corrigé avec le bon paramètre
 df_comparaison, df_pivot = load_monthly_data(selected_device)
 
+# Affichage du graphe Objectif vs Mesuré
+df_comparaison["month"] = df_comparaison["month"].astype(str)
 
-# ========== 📅 Filtres temporels ==========
+fig_comp = px.bar(
+    df_comparaison,
+    x="month",
+    y="Wh",
+    color="Source",
+    barmode="group",
+    title="Comparaison mensuelle : Objectif vs Production réelle",
+    labels={"month": "Mois", "Wh": "Énergie (Wh)"},
+    category_orders={"month": [str(i) for i in range(1, 13)]}
+)
+st.plotly_chart(fig_comp, use_container_width=True)
+
+# Affichage du tableau de taux de réalisation
+st.subheader("📋 Taux de réalisation par mois (%)")
+
+df_pivot["Taux de réalisation (%)"] = (
+    (df_pivot["measured"] / df_pivot["objective"]) * 100
+).round(1).replace([float("inf"), -float("inf")], 0).fillna(0)
+
+st.dataframe(
+    df_pivot[["month", "objective", "measured", "Taux de réalisation (%)"]],
+    use_container_width=True,
+    height=400
+)
+
+# ========== 🗓️ Filtres temporels ==========
 st.subheader("⏱️ Plage de temps pour les courbes")
 
 col1, col2 = st.columns(2)
@@ -155,7 +160,6 @@ with col4:
 start_datetime = datetime.combine(start_date, start_time)
 end_datetime = datetime.combine(end_date, end_time)
 
-device_id_sql = selected_device  # pas de guillemets, car device_id est un INT64
 start_str = start_datetime.isoformat()
 end_str = end_datetime.isoformat()
 
@@ -201,7 +205,7 @@ def load_data(table_name, device_id, start_dt, end_dt):
     return df
 
 for table, meta in sources.items():
-    df = load_data(table, device_id_sql, start_str, end_str)
+    df = load_data(table, selected_device, start_str, end_str)
 
     if df.empty:
         st.warning(f"Aucune donnée pour : {meta['title']}")
@@ -216,28 +220,27 @@ for table, meta in sources.items():
     st.line_chart(df_chart, use_container_width=True)
     st.caption(f"Axe Y : {meta['y_label']}")
 
-# ========== 🪵 Logs Fault/Warning avec filtres ==========
+# ========== 🪝 Logs Fault/Warning avec filtres ==========
 
-st.subheader("🪵 Logs de type 'fault' ou 'warning'")
+st.subheader("🪝 Logs de type 'fault' ou 'warning'")
 
 @st.cache_data
 def load_logs_all(device_id):
     query = f"""
-        SELECT date, type, message, cleared, cleared_at
+        SELECT date, type, message, cleared, cleared_at, cleared_by
         FROM `beem-data-warehouse.airbyte_postgresql.battery_device_log`
         WHERE battery_id = {device_id}
           AND type IN ('fault', 'warning')
     """
     df = client.query(query).to_dataframe()
-    df["date"] = pd.to_datetime(df["date"], utc=True)  # assure compatibilité fuseau
+    df["date"] = pd.to_datetime(df["date"], utc=True)
     return df.sort_values("date", ascending=False)
 
-df_logs_all = load_logs_all(device_id_sql)
+df_logs_all = load_logs_all(selected_device)
 
 if df_logs_all.empty:
     st.info("Aucun log de type 'fault' ou 'warning' pour cette batterie.")
 else:
-    # 🎛️ Filtres interactifs
     col1, col2 = st.columns(2)
 
     with col1:
@@ -252,7 +255,6 @@ else:
         max_date = df_logs_all["date"].max().date()
         date_range = st.date_input("Plage de dates", [min_date, max_date])
 
-    # 🎯 Application des filtres
     df_filtered = df_logs_all.copy()
 
     if type_filter:
@@ -264,4 +266,3 @@ else:
         df_filtered = df_filtered[df_filtered["date"].between(start, end)]
 
     st.dataframe(df_filtered, use_container_width=True, height=400)
-
