@@ -16,7 +16,7 @@ st.title("📋 Informations batteries")
 def load_info():
     return pd.read_csv("battery_actives_infos.csv")
 
-df = load_info()
+
 '''
 @st.cache_data
 def load_info():
@@ -26,7 +26,7 @@ def load_info():
         FROM `beem-data-warehouse.test_Mathilde.battery_actives_infos`
     """
     return client.query(query).to_dataframe()
-
+df = load_info()
 # =================================
 # 🗺️ Carte interactive
 # =================================
