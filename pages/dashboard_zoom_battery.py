@@ -107,11 +107,11 @@ def load_monthly_data():
         selected_device_sql = str(selected_device)
 
     query_obj = f"""
-        SELECT * FROM `beem-data-warehouse.test_Mathilde.objective_battery`
+        SELECT * FROM `beem-data-warehouse.airbyte_postgresql.objective_battery`
         WHERE battery_id = {selected_device_sql}
     """
     query_prod = f"""
-        SELECT * FROM `beem-data-warehouse.test_Mathilde.monthly_production_battery`
+        SELECT * FROM `beem-data-warehouse.airbyte_postgresql.monthly_production_battery`
         WHERE battery_id = {selected_device_sql}
     """
 
