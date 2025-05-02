@@ -101,9 +101,10 @@ fig_map.update_layout(mapbox_style="open-street-map", margin={"r": 0, "t": 0, "l
 st.plotly_chart(fig_map, use_container_width=True)
 
 # ========== 📊 Comparaison Objectif vs Mesuré ==========
+
 @st.cache_data
-def load_monthly_data():
-    device_sql = f"'{selected_device}'" if isinstance(selected_device, str) else str(selected_device)
+def load_monthly_data(device_id):
+    device_sql = f"'{device_id}'" if isinstance(device_id, str) else str(device_id)
 
     query_obj = f"""
         SELECT * FROM `beem-data-warehouse.airbyte_postgresql.objective_battery`
@@ -132,34 +133,9 @@ def load_monthly_data():
 
     return df_melted, df_merge
 
-df_comparaison, df_pivot = load_monthly_data()
+# Appel corrigé avec le bon paramètre
+df_comparaison, df_pivot = load_monthly_data(selected_device)
 
-df_comparaison["month"] = df_comparaison["month"].astype(str)
-
-fig_comp = px.bar(
-    df_comparaison,
-    x="month",
-    y="Wh",
-    color="Source",
-    barmode="group",
-    title="Comparaison mensuelle : Objectif vs Production réelle",
-    labels={"month": "Mois", "Wh": "Énergie (Wh)"},
-    category_orders={"month": [str(i) for i in range(1, 13)]}
-)
-st.plotly_chart(fig_comp, use_container_width=True)
-
-# ========== 📋 Taux de réalisation ==========
-st.subheader("📋 Taux de réalisation par mois (%)")
-
-df_pivot["Taux de réalisation (%)"] = (
-    (df_pivot["measured"] / df_pivot["objective"]) * 100
-).round(1).replace([float("inf"), -float("inf")], 0).fillna(0)
-
-st.dataframe(
-    df_pivot[["month", "objective", "measured", "Taux de réalisation (%)"]],
-    use_container_width=True,
-    height=400
-)
 
 # ========== 📅 Filtres temporels ==========
 st.subheader("⏱️ Plage de temps pour les courbes")
