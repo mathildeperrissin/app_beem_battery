@@ -2,17 +2,33 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 
+import os
+from google.cloud import bigquery
+
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = r"C:\Users\floch\OneDrive\Documents\GCP_key\streamlit_app\beem-data-warehouse-14a923c674a0.json"
+
+
+
 st.set_page_config(page_title="Infos Batteries", layout="wide")
 st.title("📋 Informations batteries")
-
+'''
 @st.cache_data
 def load_info():
     return pd.read_csv("battery_actives_infos.csv")
 
 df = load_info()
+'''
+@st.cache_data
+def load_info():
+    client = bigquery.Client()
+    query = """
+        SELECT *
+        FROM `beem-data-warehouse.test_Mathilde.battery_actives_infos`
+    """
+    return client.query(query).to_dataframe()
 
 # =================================
-# 🗺️ Carte interactive (après filtres)
+# 🗺️ Carte interactive
 # =================================
 st.subheader("🗺️ Carte des batteries par mode de fonctionnement")
 
