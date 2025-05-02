@@ -1,7 +1,14 @@
 import streamlit as st
 import pandas as pd
-from datetime import datetime
 import plotly.express as px
+from datetime import datetime
+import os
+from google.cloud import bigquery
+
+# Authentification
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = r"C:\Users\floch\OneDrive\Documents\GCP_key\streamlit_app\beem-data-warehouse-14a923c674a0.json"
+
+client = bigquery.Client()
 
 st.set_page_config(page_title="Zoom Battery", layout="wide")
 st.title("🔍 Dashboard Zoom sur une batterie")
@@ -9,9 +16,13 @@ st.title("🔍 Dashboard Zoom sur une batterie")
 # ========== 📦 Charger infos batteries ==========
 @st.cache_data
 def load_infos():
-    return pd.read_csv("battery_actives_infos.csv")
+    query = "SELECT * FROM `beem-data-warehouse.test_Mathilde.battery_actives_infos`"
+    df = client.query(query).to_dataframe()
+    df.rename(columns={"id": "device_id"}, inplace=True)  # pour conserver la logique actuelle
+    return df.dropna(subset=["device_id"])
 
-infos_df = load_infos().dropna(subset=["device_id"])
+infos_df = load_infos()
+
 
 # ========== 🎛️ Filtres liés : lastname / serial_number / device_id ==========
 st.subheader("🎛️ Filtrage batterie (lié par nom / n° série / device)")
@@ -88,23 +99,25 @@ st.plotly_chart(fig_map, use_container_width=True)
 
 # ========== 📊 Comparaison Objectif vs Mesuré ==========
 st.subheader("📊 Comparaison production (objective vs mesurée)")
-
 @st.cache_data
 def load_monthly_data():
-    df_obj = pd.read_csv("objective_battery.csv")
-    df_prod = pd.read_csv("monthly_production_battery.csv")
+    query_obj = f"""
+        SELECT * FROM `beem-data-warehouse.airbyte_postgresql.objective_battery`
+        WHERE battery_id = '{selected_device}'
+    """
+    query_prod = f"""
+        SELECT * FROM `beem-data-warehouse.airbyte_postgresql.monthly_production_battery`
+        WHERE battery_id = '{selected_device}'
+    """
+    df_obj = client.query(query_obj).to_dataframe()
+    df_prod = client.query(query_prod).to_dataframe()
 
     df_prod["date"] = pd.to_datetime(df_prod["date"])
     df_prod["month"] = df_prod["date"].dt.month
     df_prod["year"] = df_prod["date"].dt.year
 
-    # 🔄 Pour chaque mois, on garde l'année la plus récente
     latest_per_month = df_prod.groupby("month")["year"].max().reset_index()
     df_prod = pd.merge(df_prod, latest_per_month, on=["month", "year"], how="inner")
-
-
-    df_obj = df_obj[df_obj["battery_id"] == selected_device]
-    df_prod = df_prod[df_prod["battery_id"] == selected_device]
 
     agg_obj = df_obj.groupby("month")["value"].sum().reset_index()
     agg_obj.rename(columns={"value": "objective"}, inplace=True)
