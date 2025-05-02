@@ -75,11 +75,11 @@ col4, col5, col6 = st.columns(3)
 with col4:
     st.metric("Nb modules", int(device_info["nb_modules"].values[0]))
 with col5:
+    st.metric("SOH (%)", round(device_info["global_soh"].values[0], 1))
+with col6:
     mode_clean = device_info["working_mode_code"].astype(str).values[0]
     mode_clean = mode_clean.replace("ampace_v1_", "").replace("ampace_v2_", "")
     st.metric("Mode de fonctionnement", mode_clean)
-with col6:
-    st.metric("SOH (%)", round(device_info["global_soh"].values[0], 1))
 
 
 # ========== 🗺️ Carte ==========
@@ -239,3 +239,26 @@ for table, meta in sources.items():
     st.subheader(meta["title"])
     st.line_chart(df_chart, use_container_width=True)
     st.caption(f"Axe Y : {meta['y_label']}")
+
+# ========== 🪵 Logs Fault/Warning ==========
+
+st.subheader("🪵 Logs de type 'fault' ou 'warning'")
+
+@st.cache_data
+def load_logs(device_id):
+    query = f"""
+        SELECT date, type, message, cleared, cleared_at, cleared_by
+        FROM `beem-data-warehouse.airbyte_postgresql.battery_device_log`
+        WHERE battery_id = {device_id}
+          AND type IN ('fault', 'warning')
+        ORDER BY date DESC
+    """
+    return client.query(query).to_dataframe()
+
+df_logs = load_logs(device_id_sql)
+
+if df_logs.empty:
+    st.info("Aucun log de type 'fault' ou 'warning' pour cette batterie.")
+else:
+    df_logs["date"] = pd.to_datetime(df_logs["date"])
+    st.dataframe(df_logs, use_container_width=True, height=400)
