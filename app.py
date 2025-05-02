@@ -1,17 +1,13 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-
 import os
 from google.cloud import bigquery
 
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = r"C:\Users\floch\OneDrive\Documents\GCP_key\streamlit_app\beem-data-warehouse-14a923c674a0.json"
 
-
-
 st.set_page_config(page_title="Infos Batteries", layout="wide")
 st.title("📋 Informations batteries")
-
 
 @st.cache_data
 def load_info():
@@ -21,7 +17,9 @@ def load_info():
         FROM `beem-data-warehouse.test_Mathilde.battery_actives_infos`
     """
     return client.query(query).to_dataframe()
+
 df = load_info()
+
 # =================================
 # 🗺️ Carte interactive
 # =================================
@@ -32,7 +30,6 @@ df["clean_mode"] = df["clean_mode"].str.replace(r"^ampace_v[12]_", "", regex=Tru
 
 df["point_size"] = 7  
 
-
 fig_map = px.scatter_mapbox(
     df,
     lat="latitude",
@@ -40,7 +37,7 @@ fig_map = px.scatter_mapbox(
     color="clean_mode",
     hover_name="lastname",
     size="point_size",
-    hover_data=["device_id", "hardware_version", "nb_cycles"],
+    hover_data=["id", "hardware_version", "nb_cycles"],  # ici 'id' remplace 'device_id'
     zoom=5,
     height=600
 )
