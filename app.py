@@ -11,13 +11,8 @@ os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = r"C:\Users\floch\OneDrive\Documen
 
 st.set_page_config(page_title="Infos Batteries", layout="wide")
 st.title("📋 Informations batteries")
-'''
-@st.cache_data
-def load_info():
-    return pd.read_csv("battery_actives_infos.csv")
 
 
-'''
 @st.cache_data
 def load_info():
     client = bigquery.Client()
