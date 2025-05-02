@@ -247,7 +247,7 @@ st.subheader("🪵 Logs de type 'fault' ou 'warning'")
 @st.cache_data
 def load_logs_all(device_id):
     query = f"""
-        SELECT date, type, message, cleared, cleared_at, cleared_by
+        SELECT date, type, message, cleared, cleared_at
         FROM `beem-data-warehouse.airbyte_postgresql.battery_device_log`
         WHERE battery_id = {device_id}
           AND type IN ('fault', 'warning')
