@@ -173,7 +173,7 @@ with col4:
 start_datetime = datetime.combine(start_date, start_time)
 end_datetime = datetime.combine(end_date, end_time)
 
-device_id_sql = f"'{selected_device}'"
+device_id_sql = selected_device  # pas de guillemets, car device_id est un INT64
 start_str = start_datetime.isoformat()
 end_str = end_datetime.isoformat()
 
