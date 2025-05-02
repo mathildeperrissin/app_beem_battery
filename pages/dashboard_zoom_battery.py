@@ -67,10 +67,10 @@ col1, col2, col3 = st.columns(3)
 with col1:
     st.metric("Version hardware", device_info["hardware_version"].values[0])
 with col2:
-    st.metric("Nombre de cycles", int(device_info["nb_cycles"].values[0]))
+    st.metric("Mise en service", created_at_str)
 with col3:
-    st.metric("SOH (%)", round(device_info["global_soh"].values[0], 1))
-
+    st.metric("Nombre de cycles", int(device_info["nb_cycles"].values[0]))
+    
 col4, col5, col6 = st.columns(3)
 with col4:
     st.metric("Nb modules", int(device_info["nb_modules"].values[0]))
@@ -79,7 +79,7 @@ with col5:
     mode_clean = mode_clean.replace("ampace_v1_", "").replace("ampace_v2_", "")
     st.metric("Mode de fonctionnement", mode_clean)
 with col6:
-    st.metric("Mise en service", created_at_str)
+    st.metric("SOH (%)", round(device_info["global_soh"].values[0], 1))
 
 
 # ========== 🗺️ Carte ==========
