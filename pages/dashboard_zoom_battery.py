@@ -7,7 +7,6 @@ from google.cloud import bigquery
 
 # Authentification
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = r"C:\Users\floch\OneDrive\Documents\GCP_key\streamlit_app\beem-data-warehouse-14a923c674a0.json"
-
 client = bigquery.Client()
 
 st.set_page_config(page_title="Zoom Battery", layout="wide")
@@ -18,13 +17,12 @@ st.title("🔍 Dashboard Zoom sur une batterie")
 def load_infos():
     query = "SELECT * FROM `beem-data-warehouse.test_Mathilde.battery_actives_infos`"
     df = client.query(query).to_dataframe()
-    df.rename(columns={"id": "device_id"}, inplace=True)  # pour conserver la logique actuelle
+    df.rename(columns={"id": "device_id"}, inplace=True)
     return df.dropna(subset=["device_id"])
 
 infos_df = load_infos()
 
-
-# ========== 🎛️ Filtres liés : lastname / serial_number / device_id ==========
+# ========== 🎛️ Filtres liés ==========
 st.subheader("🎛️ Filtrage batterie (lié par nom / n° série / device)")
 
 lastnames = sorted(infos_df["lastname"].dropna().unique().tolist())
@@ -60,7 +58,6 @@ st.info(
 
 # ========== 🧾 Informations techniques ==========
 device_info = infos_df[infos_df["device_id"] == selected_device]
-
 st.subheader("🔧 Informations techniques")
 
 col1, col2, col3 = st.columns(3)
@@ -94,30 +91,25 @@ fig_map = px.scatter_mapbox(
     height=400,
     hover_name="lastname"
 )
-fig_map.update_layout(mapbox_style="open-street-map", margin={"r":0,"t":0,"l":0,"b":0})
+fig_map.update_layout(mapbox_style="open-street-map", margin={"r": 0, "t": 0, "l": 0, "b": 0})
 st.plotly_chart(fig_map, use_container_width=True)
 
 # ========== 📊 Comparaison Objectif vs Mesuré ==========
 @st.cache_data
 def load_monthly_data():
-    # Vérifie si c'est un entier ou pas
-    if isinstance(selected_device, str):
-        selected_device_sql = f"'{selected_device}'"
-    else:
-        selected_device_sql = str(selected_device)
+    device_sql = f"'{selected_device}'" if isinstance(selected_device, str) else str(selected_device)
 
     query_obj = f"""
         SELECT * FROM `beem-data-warehouse.airbyte_postgresql.objective_battery`
-        WHERE battery_id = {selected_device_sql}
+        WHERE battery_id = {device_sql}
     """
     query_prod = f"""
         SELECT * FROM `beem-data-warehouse.airbyte_postgresql.monthly_production_battery`
-        WHERE battery_id = {selected_device_sql}
+        WHERE battery_id = {device_sql}
     """
 
     df_obj = client.query(query_obj).to_dataframe()
     df_prod = client.query(query_prod).to_dataframe()
-
 
     df_prod["date"] = pd.to_datetime(df_prod["date"])
     df_prod["month"] = df_prod["date"].dt.month
@@ -126,11 +118,8 @@ def load_monthly_data():
     latest_per_month = df_prod.groupby("month")["year"].max().reset_index()
     df_prod = pd.merge(df_prod, latest_per_month, on=["month", "year"], how="inner")
 
-    agg_obj = df_obj.groupby("month")["value"].sum().reset_index()
-    agg_obj.rename(columns={"value": "objective"}, inplace=True)
-
-    agg_prod = df_prod.groupby("month")["watt_hours"].sum().reset_index()
-    agg_prod.rename(columns={"watt_hours": "measured"}, inplace=True)
+    agg_obj = df_obj.groupby("month")["value"].sum().reset_index().rename(columns={"value": "objective"})
+    agg_prod = df_prod.groupby("month")["watt_hours"].sum().reset_index().rename(columns={"watt_hours": "measured"})
 
     df_merge = pd.merge(agg_obj, agg_prod, on="month", how="outer").sort_values("month").fillna(0)
     df_melted = df_merge.melt(id_vars="month", var_name="Source", value_name="Wh")
@@ -139,6 +128,8 @@ def load_monthly_data():
 
 df_comparaison, df_pivot = load_monthly_data()
 
+df_comparaison["month"] = df_comparaison["month"].astype(str)
+
 fig_comp = px.bar(
     df_comparaison,
     x="month",
@@ -146,11 +137,12 @@ fig_comp = px.bar(
     color="Source",
     barmode="group",
     title="Comparaison mensuelle : Objectif vs Production réelle",
-    labels={"month": "Mois", "Wh": "Énergie (Wh)"}
+    labels={"month": "Mois", "Wh": "Énergie (Wh)"},
+    category_orders={"month": [str(i) for i in range(1, 13)]}
 )
 st.plotly_chart(fig_comp, use_container_width=True)
 
-# ========== 📋 Taux de réalisation (%)
+# ========== 📋 Taux de réalisation ==========
 st.subheader("📋 Taux de réalisation par mois (%)")
 
 df_pivot["Taux de réalisation (%)"] = (
@@ -181,29 +173,33 @@ with col4:
 start_datetime = datetime.combine(start_date, start_time)
 end_datetime = datetime.combine(end_date, end_time)
 
-# ========== 📈 Courbes multi-sources ==========
+device_id_sql = f"'{selected_device}'"
+start_str = start_datetime.isoformat()
+end_str = end_datetime.isoformat()
+
+# ========== 📈 Courbes multi-sources depuis GCP ==========
 sources = {
-    "battery_active_energy_measure.csv": {
+    "battery_active_energy_measure": {
         "title": "Consommation infra-journalière",
         "y_label": "Wh par batterie",
         "agg": False,
     },
-    "battery_active_returned_energy_meter_measure.csv": {
+    "battery_active_returned_energy_meter_measure": {
         "title": "Ré-injection infra-journalière",
         "y_label": "Wh par batterie",
         "agg": False,
     },
-    "battery_active_returned_energy_measure.csv": {
+    "battery_active_returned_energy_measure": {
         "title": "Production solaire (somme MPPT)",
         "y_label": "Wh total",
         "agg": True,
     },
-    "battery_energy_charged_measure.csv": {
+    "battery_energy_charged_measure": {
         "title": "Énergie stockée (batterie)",
         "y_label": "Wh",
         "agg": False,
     },
-    "battery_energy_discharged_measure.csv": {
+    "battery_energy_discharged_measure": {
         "title": "Énergie déstockée (batterie)",
         "y_label": "Wh",
         "agg": False,
@@ -211,15 +207,19 @@ sources = {
 }
 
 @st.cache_data
-def load_data(filename):
-    df = pd.read_csv(filename)
+def load_data(table_name, device_id, start_dt, end_dt):
+    query = f"""
+        SELECT *
+        FROM `beem-data-warehouse.mongo_beem.{table_name}`
+        WHERE device_id = {device_id}
+          AND DATETIME(date) BETWEEN DATETIME('{start_dt}') AND DATETIME('{end_dt}')
+    """
+    df = client.query(query).to_dataframe()
     df["date"] = pd.to_datetime(df["date"])
     return df
 
-for file, meta in sources.items():
-    df = load_data(file)
-    df = df[df["device_id"] == selected_device]
-    df = df[(df["date"].dt.tz_localize(None) >= start_datetime) & (df["date"].dt.tz_localize(None) <= end_datetime)]
+for table, meta in sources.items():
+    df = load_data(table, device_id_sql, start_str, end_str)
 
     if df.empty:
         st.warning(f"Aucune donnée pour : {meta['title']}")
