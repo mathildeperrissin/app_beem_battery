@@ -247,13 +247,13 @@ st.subheader("🪵 Logs de type 'fault' ou 'warning'")
 @st.cache_data
 def load_logs_all(device_id):
     query = f"""
-        SELECT date, type, message, cleared, cleared_at
+        SELECT date, type, message, cleared, cleared_at, cleared_by
         FROM `beem-data-warehouse.airbyte_postgresql.battery_device_log`
         WHERE battery_id = {device_id}
           AND type IN ('fault', 'warning')
     """
     df = client.query(query).to_dataframe()
-    df["date"] = pd.to_datetime(df["date"])
+    df["date"] = pd.to_datetime(df["date"], utc=True)  # assure compatibilité fuseau
     return df.sort_values("date", ascending=False)
 
 df_logs_all = load_logs_all(device_id_sql)
@@ -261,7 +261,7 @@ df_logs_all = load_logs_all(device_id_sql)
 if df_logs_all.empty:
     st.info("Aucun log de type 'fault' ou 'warning' pour cette batterie.")
 else:
-    # Filtres interactifs
+    # 🎛️ Filtres interactifs
     col1, col2 = st.columns(2)
 
     with col1:
@@ -270,15 +270,22 @@ else:
             options=["fault", "warning"],
             default=["fault", "warning"]
         )
-    with col2:
-        min_date, max_date = df_logs_all["date"].min(), df_logs_all["date"].max()
-        date_range = st.date_input("Plage de dates", [min_date.date(), max_date.date()])
 
+    with col2:
+        min_date = df_logs_all["date"].min().date()
+        max_date = df_logs_all["date"].max().date()
+        date_range = st.date_input("Plage de dates", [min_date, max_date])
+
+    # 🎯 Application des filtres
     df_filtered = df_logs_all.copy()
+
     if type_filter:
         df_filtered = df_filtered[df_filtered["type"].isin(type_filter)]
+
     if len(date_range) == 2:
-        start, end = pd.to_datetime(date_range[0]), pd.to_datetime(date_range[1])
+        start = pd.to_datetime(date_range[0]).tz_localize("UTC")
+        end = pd.to_datetime(date_range[1]).tz_localize("UTC")
         df_filtered = df_filtered[df_filtered["date"].between(start, end)]
 
     st.dataframe(df_filtered, use_container_width=True, height=400)
+
