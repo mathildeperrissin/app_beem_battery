@@ -98,19 +98,26 @@ fig_map.update_layout(mapbox_style="open-street-map", margin={"r":0,"t":0,"l":0,
 st.plotly_chart(fig_map, use_container_width=True)
 
 # ========== 📊 Comparaison Objectif vs Mesuré ==========
-st.subheader("📊 Comparaison production (objective vs mesurée)")
 @st.cache_data
 def load_monthly_data():
+    # Vérifie si c'est un entier ou pas
+    if isinstance(selected_device, str):
+        selected_device_sql = f"'{selected_device}'"
+    else:
+        selected_device_sql = str(selected_device)
+
     query_obj = f"""
-        SELECT * FROM `beem-data-warehouse.airbyte_postgresql.objective_battery`
-        WHERE battery_id = '{selected_device}'
+        SELECT * FROM `beem-data-warehouse.test_Mathilde.objective_battery`
+        WHERE battery_id = {selected_device_sql}
     """
     query_prod = f"""
-        SELECT * FROM `beem-data-warehouse.airbyte_postgresql.monthly_production_battery`
-        WHERE battery_id = '{selected_device}'
+        SELECT * FROM `beem-data-warehouse.test_Mathilde.monthly_production_battery`
+        WHERE battery_id = {selected_device_sql}
     """
+
     df_obj = client.query(query_obj).to_dataframe()
     df_prod = client.query(query_prod).to_dataframe()
+
 
     df_prod["date"] = pd.to_datetime(df_prod["date"])
     df_prod["month"] = df_prod["date"].dt.month
