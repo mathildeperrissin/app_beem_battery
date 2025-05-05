@@ -17,7 +17,7 @@ def load_info():
         FROM `beem-data-warehouse.test_Mathilde.battery_actives_infos`
     """
     return client.query(query).to_dataframe()
-
+ 
 df = load_info()
 
 # =================================
