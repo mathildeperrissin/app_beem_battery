@@ -286,9 +286,10 @@ else:
 
     with col1:
         type_filter = st.multiselect(
-            "Type de log",
-            options=["fault", "warning"],
-            default=["fault", "warning"]
+         "Type de log",
+         options=["fault", "warning"],
+          default=["fault", "warning"],
+         key="type_filter_main"
         )
 
     with col2:
@@ -315,9 +316,10 @@ st.subheader("🧮 Total des logs par type et message")
 col1, col2 = st.columns(2)
 with col1:
     type_filter_summary = st.multiselect(
-        "Type de log",
-        options=["fault", "warning"],
-        default=["fault", "warning"]
+      "Type de log",
+       options=["fault", "warning"],
+       default=["fault", "warning"],
+       key="type_filter_summary"
     )
 
 with col2:
