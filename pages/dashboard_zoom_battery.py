@@ -253,7 +253,7 @@ fig.update_layout(
                 dict(step="all", label="Tout")
             ])
         ),
-        rangeslider=dict(visible=True),
+        rangeslider=dict(visible=False),
         type="date"
     )
 )
