@@ -150,9 +150,10 @@ st.subheader("⏱️ Plage de temps pour les courbes")
 
 col1, col2 = st.columns(2)
 with col1:
-    start_date = st.date_input("Date de début", datetime(2025, 4, 1))
+    start_date = st.date_input("Date de début", datetime(2025, 4, 1), key="start_main")
 with col2:
-    end_date = st.date_input("Date de fin", datetime(2025, 4, 30))
+    end_date = st.date_input("Date de fin", datetime(2025, 4, 30), key="end_main")
+
 
 col3, col4 = st.columns(2)
 with col3:
@@ -326,8 +327,9 @@ with col2:
     min_date_summary = df_logs_all["date"].min().date()
     max_date_summary = df_logs_all["date"].max().date()
     date_range_summary = st.date_input(
-        "Plage de dates", [min_date_summary, max_date_summary]
+    "Plage de dates", [min_date_summary, max_date_summary], key="date_range_summary"
     )
+
 
 # Application des filtres spécifiques
 df_summary_filtered = df_logs_all.copy()
