@@ -266,3 +266,45 @@ else:
         df_filtered = df_filtered[df_filtered["date"].between(start, end)]
 
     st.dataframe(df_filtered, use_container_width=True, height=400)
+
+# ========== 📊 Résumé des logs par type + message (filtres indépendants) ==========
+st.subheader("🧮 Résumé indépendant des logs par type et message")
+
+# Filtres spécifiques à ce tableau
+col1, col2 = st.columns(2)
+with col1:
+    type_filter_summary = st.multiselect(
+        "Type de log (résumé)",
+        options=["fault", "warning"],
+        default=["fault", "warning"]
+    )
+
+with col2:
+    min_date_summary = df_logs_all["date"].min().date()
+    max_date_summary = df_logs_all["date"].max().date()
+    date_range_summary = st.date_input(
+        "Plage de dates (résumé)", [min_date_summary, max_date_summary]
+    )
+
+# Application des filtres spécifiques
+df_summary_filtered = df_logs_all.copy()
+
+if type_filter_summary:
+    df_summary_filtered = df_summary_filtered[df_summary_filtered["type"].isin(type_filter_summary)]
+
+if len(date_range_summary) == 2:
+    start_summary = pd.to_datetime(date_range_summary[0]).tz_localize("UTC")
+    end_summary = pd.to_datetime(date_range_summary[1]).tz_localize("UTC")
+    df_summary_filtered = df_summary_filtered[
+        df_summary_filtered["date"].between(start_summary, end_summary)
+    ]
+
+# Comptage des combinaisons type + message
+if not df_summary_filtered.empty:
+    df_summary_filtered["type_message"] = df_summary_filtered["type"] + " - " + df_summary_filtered["message"]
+    summary = df_summary_filtered.groupby("type_message").size().reset_index(name="count")
+    summary = summary.sort_values(by="count", ascending=False)
+
+    st.dataframe(summary, use_container_width=True)
+else:
+    st.info("Aucune donnée à afficher pour ce résumé.")
