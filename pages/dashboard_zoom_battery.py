@@ -142,7 +142,10 @@ st.dataframe(
     height=400
 )
 
+import plotly.graph_objects as go
+
 # ========== 🗓️ Filtres temporels ==========
+
 st.subheader("⏱️ Plage de temps pour les courbes")
 
 col1, col2 = st.columns(2)
@@ -163,7 +166,8 @@ end_datetime = datetime.combine(end_date, end_time)
 start_str = start_datetime.isoformat()
 end_str = end_datetime.isoformat()
 
-# ========== 📈 Courbes multi-sources depuis GCP ==========
+# ========== 📈 Courbes multi-sources combinées ==========
+
 sources = {
     "battery_active_energy_measure": {
         "title": "Consommation infra-journalière",
@@ -204,8 +208,20 @@ def load_data(table_name, device_id, start_dt, end_dt):
     df["date"] = pd.to_datetime(df["date"])
     return df
 
-for table, meta in sources.items():
-    df = load_data(table, selected_device, start_str, end_str)
+st.subheader("📊 Visualisation combinée des mesures")
+
+selected_sources = st.multiselect(
+    "Sélectionne les courbes à afficher :",
+    options=list(sources.keys()),
+    format_func=lambda x: sources[x]["title"],
+    default=list(sources.keys())  # ou [] si tu veux les cacher par défaut
+)
+
+fig = go.Figure()
+
+for table_name in selected_sources:
+    meta = sources[table_name]
+    df = load_data(table_name, selected_device, start_str, end_str)
 
     if df.empty:
         st.warning(f"Aucune donnée pour : {meta['title']}")
@@ -214,11 +230,36 @@ for table, meta in sources.items():
     if meta["agg"] and "device_sub_id" in df.columns:
         df = df.groupby(["date", "device_id"], as_index=False)["value"].sum()
 
-    df_chart = df.pivot(index="date", columns="device_id", values="value")
+    df = df.sort_values("date")
+    fig.add_trace(go.Scatter(
+        x=df["date"],
+        y=df["value"],
+        mode="lines",
+        name=meta["title"]
+    ))
 
-    st.subheader(meta["title"])
-    st.line_chart(df_chart, use_container_width=True)
-    st.caption(f"Axe Y : {meta['y_label']}")
+fig.update_layout(
+    title="Courbes combinées des mesures",
+    xaxis_title="Date",
+    yaxis_title="Wh",
+    legend_title="Type de mesure",
+    height=600,
+    xaxis=dict(
+        rangeselector=dict(
+            buttons=list([
+                dict(count=1, label="1j", step="day", stepmode="backward"),
+                dict(count=7, label="1s", step="day", stepmode="backward"),
+                dict(count=1, label="1m", step="month", stepmode="backward"),
+                dict(step="all", label="Tout")
+            ])
+        ),
+        rangeslider=dict(visible=True),
+        type="date"
+    )
+)
+
+st.plotly_chart(fig, use_container_width=True)
+
 
 # ========== 🪝 Logs Fault/Warning avec filtres ==========
 
