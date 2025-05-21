@@ -268,13 +268,13 @@ else:
     st.dataframe(df_filtered, use_container_width=True, height=400)
 
 # ========== 📊 Résumé des logs par type + message (filtres indépendants) ==========
-st.subheader("🧮 Résumé indépendant des logs par type et message")
+st.subheader("🧮 Total des logs par type et message")
 
 # Filtres spécifiques à ce tableau
 col1, col2 = st.columns(2)
 with col1:
     type_filter_summary = st.multiselect(
-        "Type de log (résumé)",
+        "Type de log",
         options=["fault", "warning"],
         default=["fault", "warning"]
     )
@@ -283,7 +283,7 @@ with col2:
     min_date_summary = df_logs_all["date"].min().date()
     max_date_summary = df_logs_all["date"].max().date()
     date_range_summary = st.date_input(
-        "Plage de dates (résumé)", [min_date_summary, max_date_summary]
+        "Plage de dates", [min_date_summary, max_date_summary]
     )
 
 # Application des filtres spécifiques
