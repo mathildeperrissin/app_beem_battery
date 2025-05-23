@@ -311,7 +311,9 @@ with col1:
 with col2:
     search_time = st.time_input("🕒 Heure cible", datetime(2025, 4, 15, 12, 0).time(), key="search_time")
 
-search_datetime = datetime.combine(search_date, search_time)
+from datetime import timezone
+search_datetime = datetime.combine(search_date, search_time).replace(tzinfo=timezone.utc)
+
 
 # Fusionner toutes les sources sélectionnées
 closest_rows = []
