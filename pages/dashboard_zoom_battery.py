@@ -301,6 +301,46 @@ fig.update_layout(
 
 st.plotly_chart(fig, use_container_width=True)
 
+# ========== 🔍 Valeurs proches d'une date/heure sélectionnée ==========
+
+st.subheader("📍 Obtenir les valeurs les plus proches d'un moment donné")
+
+col1, col2 = st.columns(2)
+with col1:
+    search_date = st.date_input("📅 Date cible", datetime(2025, 4, 15), key="search_date")
+with col2:
+    search_time = st.time_input("🕒 Heure cible", datetime(2025, 4, 15, 12, 0).time(), key="search_time")
+
+search_datetime = datetime.combine(search_date, search_time)
+
+# Fusionner toutes les sources sélectionnées
+closest_rows = []
+
+for table_name in selected_sources:
+    meta = sources[table_name]
+    df = load_data(table_name, selected_device, start_str, end_str)
+
+    if df.empty:
+        continue
+
+    if meta["agg"] and "device_sub_id" in df.columns:
+        df = df.groupby(["date", "device_id"], as_index=False)["value"].sum()
+
+    df = df.sort_values("date")
+    df["time_diff"] = (df["date"] - search_datetime).abs()
+    closest = df.loc[df["time_diff"].idxmin()]
+    closest_rows.append({
+        "Type de mesure": meta["title"],
+        "Date/heure la plus proche": closest["date"],
+        "Valeur": closest["value"]
+    })
+
+if closest_rows:
+    df_closest = pd.DataFrame(closest_rows)
+    st.dataframe(df_closest, use_container_width=True)
+else:
+    st.info("Aucune donnée disponible pour cette période.")
+
 
 # ========== 🪝 Logs Fault/Warning avec filtres ==========
 
