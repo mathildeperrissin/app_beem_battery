@@ -309,7 +309,15 @@ col1, col2 = st.columns(2)
 with col1:
     search_date = st.date_input("📅 Date cible", datetime(2025, 4, 15), key="search_date")
 with col2:
-    search_time = st.time_input("🕒 Heure cible", datetime(2025, 4, 15, 12, 0).time(), key="search_time")
+    from datetime import timedelta
+
+    search_time = st.time_input(
+        "🕒 Heure cible",
+        datetime(2025, 4, 15, 12, 0).time(),
+        key="search_time",
+        step=timedelta(minutes=5)
+    )
+
 
 from datetime import timezone
 search_datetime = datetime.combine(search_date, search_time).replace(tzinfo=timezone.utc)
