@@ -1,11 +1,11 @@
 import streamlit as st
 import pandas as pd
-import plotly.express as px
-from datetime import datetime
-import os
 from google.cloud import bigquery
 
-# ========== 📦 Charger infos batteries ==========
+# Initialiser le client BigQuery
+client = bigquery.Client()
+
+# ========== 📦 Charger les inverters non fonctionnels ==========
 @st.cache_data
 def load_faulty_inverters():
     query = """
@@ -34,16 +34,17 @@ def load_faulty_inverters():
     """
     return client.query(query).to_dataframe()
 
+# ========== 🖼️ Affichage Streamlit ==========
+st.title("⚠️ Not running inverter list")
 
-infos_df = load_infos()
-
-st.title("Not running inverter list")
-
+# Charger les données
 faulty_df = load_faulty_inverters()
 
+# Afficher le tableau trié par date de mesure
 st.dataframe(
     faulty_df.sort_values("last_known_measure_date")[[
         "serial_number", "firstname", "lastname", "working_mode_code", "last_known_measure_date"
     ]]
 )
+
 
