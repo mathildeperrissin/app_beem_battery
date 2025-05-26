@@ -31,6 +31,7 @@ def load_faulty_inverters():
               AND d.warranty_status = 'activated'
               AND u.id != 22
               AND u.id != 4395
+              AND d.serial_number NOT IN ('021LOLL190154M','021LOLF080008M')
               AND ld.working_mode_code NOT IN (
                 'ampace_v1_on_grid_discharge',
                 'ampace_v1_on_grid_charge',
