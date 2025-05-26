@@ -90,7 +90,7 @@ st.subheader("🗺️ Carte des batteries par mode de fonctionnement")
 
 df["clean_mode"] = df["working_mode_code"].fillna("Inconnu").astype(str)
 df["clean_mode"] = df["clean_mode"].str.replace(r"^ampace_", "", regex=True)
-df["point_size"] = 7  
+df["point_size"] = 5  
 
 fig_map = px.scatter_mapbox(
     df,
