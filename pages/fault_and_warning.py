@@ -7,68 +7,43 @@ from google.cloud import bigquery
 
 # ========== 📦 Charger infos batteries ==========
 @st.cache_data
-def load_infos():
+def load_faulty_inverters():
     query = """
-        WITH device_user_data AS (
-     SELECT 
-        *
-      FROM `beem-data-warehouse.airbyte_postgresql.battery_device` AS d
-      LEFT JOIN `beem-data-warehouse.airbyte_postgresql.battery_live_data` AS ld ON ld.battery_id = d.id
-      LEFT JOIN `beem-data-warehouse.airbyte_postgresql.house_user` AS hu ON d.house_id = hu.house_id 
-      LEFT JOIN `beem-data-warehouse.airbyte_postgresql.user` AS u ON hu.user_id = u.id
-      LEFT JOIN `beem-data-warehouse.airbyte_postgresql.house` AS h ON h.id = hu.house_id
-      WHERE d.deleted_at IS NULL
-        AND d.replaced_by_id IS NULL
-        AND d.warranty_status = 'activated'
-        AND d.serial_number NOT IN ('021LOLL190154M','021LOLF080008M')
-        --AND u.id NOT IN (22, 4395, 34538)
-        --AND d.hardware_version = 'ampace_v1'
-    ),
-
-    serial_counts AS (
-      SELECT 
-        serial_number,
-        COUNT(*) AS nb
-      FROM device_user_data
-      GROUP BY serial_number
-    ),
-    final AS (
-      SELECT dud.*
-      FROM device_user_data dud
-      JOIN serial_counts sc ON dud.serial_number = sc.serial_number
-      WHERE 
-        -- si le serial est unique, on garde tout
-        sc.nb = 1
-
-        -- si le serial est dupliqué, on garde seulement si email ne se termine pas par @beemenergy
-        OR (
-        sc.nb > 1
-       AND dud.email NOT LIKE '%@beemenergy.com'
-        AND dud.email NOT LIKE '%@beemenergy.fr'
-      )
-    )
-    SELECT * FROM final;
+        SELECT 
+            d.serial_number AS serial_number,
+            u.firstname AS firstname,
+            u.lastname AS lastname,
+            ld.working_mode_code AS working_mode_code,
+            ld.last_known_measure_date AS last_known_measure_date
+        FROM `beem-data-warehouse.airbyte_postgresql.battery_device` AS d
+        LEFT JOIN `beem-data-warehouse.airbyte_postgresql.battery_live_data` AS ld ON ld.battery_id = d.id
+        INNER JOIN `beem-data-warehouse.airbyte_postgresql.house` AS h ON h.id = d.house_id
+        INNER JOIN `beem-data-warehouse.airbyte_postgresql.house_user` AS hu ON hu.house_id = h.id
+        INNER JOIN `beem-data-warehouse.airbyte_postgresql.user` AS u ON u.id = hu.user_id
+        WHERE d.deleted_at IS NULL
+          AND d.replaced_by_id IS NULL
+          AND d.warranty_status = 'activated'
+          AND u.id != 22
+          AND u.id != 4395
+          AND ld.working_mode_code NOT IN (
+              'ampace_v1_on_grid_discharge',
+              'ampace_v1_on_grid_charge',
+              'ampace_v1_on_grid_passby',
+              'ampace_v2_normal'
+          )
     """
-    df = client.query(query).to_dataframe()
-    df.rename(columns={"id": "device_id"}, inplace=True)
-    return df.dropna(subset=["device_id"])
+    return client.query(query).to_dataframe()
+
 
 infos_df = load_infos()
 
-# Liste des working_mode_code considérés comme "running"
-running_modes = [
-    'ampace_v1_on_grid_discharge',
-    'ampace_v1_on_grid_charge',
-    'ampace_v1_on_grid_passby',
-    'ampace_v2_normal'
-]
-
-# Filtrer les batteries qui ne sont pas dans un mode "running"
-not_running_df = infos_df[~infos_df['working_mode_code'].isin(running_modes)]
-
-# Sélectionner les colonnes à afficher
-not_running_df = not_running_df[["serial_number", "firstname", "lastname", "working_mode_code"]]
-
-# Afficher le tableau
 st.title("Not running inverter list")
-st.dataframe(not_running_df.sort_values("serial_number"))
+
+faulty_df = load_faulty_inverters()
+
+st.dataframe(
+    faulty_df.sort_values("last_known_measure_date")[[
+        "serial_number", "firstname", "lastname", "working_mode_code", "last_known_measure_date"
+    ]]
+)
+
