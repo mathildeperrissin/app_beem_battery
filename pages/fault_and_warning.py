@@ -29,18 +29,24 @@ def load_faulty_inverters():
             WHERE d.deleted_at IS NULL
               AND d.replaced_by_id IS NULL
               AND d.warranty_status = 'activated'
+              AND hu.mode = 'w'  -- ⚠️ présent dans Bob, pas dans ton code actuel
               AND u.id != 22
               AND u.id != 4395
-              AND d.serial_number NOT IN ('021LOLL190154M','021LOLF080008M')
+              AND d.serial_number NOT IN (
+                  '021LOLF080008M',
+                  '519100001533252014000009',
+                  '519100001533252014000010'
+              )
               AND ld.working_mode_code NOT IN (
-                'ampace_v1_on_grid_discharge',
-                'ampace_v1_on_grid_charge',
-                'ampace_v1_on_grid_passby',
-                'ampace_v2_normal'
+                  'ampace_v1_on_grid_discharge',
+                  'ampace_v1_on_grid_charge',
+                  'ampace_v1_on_grid_passby',
+                  'ampace_v2_normal'
               )
               AND ld.working_mode_code NOT LIKE 'ampace_v2%'
         ) AS virtual_table
         ORDER BY last_known_measure_date ASC
+        LIMIT 1000
     """
     return client.query(query).to_dataframe()
 
@@ -50,14 +56,12 @@ st.title("⚠️ Not running inverter list")
 
 faulty_df = load_faulty_inverters()
 
-# Affichage du tableau
 st.dataframe(
-    faulty_df[[  # Pas besoin de trier dans Streamlit si déjà fait dans SQL
+    faulty_df[[  # Tri déjà fait dans la requête
         "serial_number", "firstname", "lastname", "working_mode_code", "last_known_measure_date"
     ]]
 )
 
-# Bouton de téléchargement
 st.download_button(
     label="📥 Télécharger en CSV",
     data=faulty_df.to_csv(index=False).encode('utf-8'),
