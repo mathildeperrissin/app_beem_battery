@@ -28,9 +28,9 @@ def load_faulty_inverters():
           AND ld.working_mode_code NOT IN (
               'ampace_v1_on_grid_discharge',
               'ampace_v1_on_grid_charge',
-              'ampace_v1_on_grid_passby',
-              'ampace_v2_normal'
+              'ampace_v1_on_grid_passby'
           )
+          AND ld.working_mode_code NOT LIKE 'ampace_v2%'
     """
     return client.query(query).to_dataframe()
 
@@ -47,4 +47,10 @@ st.dataframe(
     ]]
 )
 
-
+# Bouton de téléchargement CSV
+st.download_button(
+    label="📥 Télécharger en CSV",
+    data=faulty_df.to_csv(index=False).encode('utf-8'),
+    file_name="not_running_inverters.csv",
+    mime='text/csv'
+)
