@@ -24,7 +24,7 @@ def load_global_metrics():
         FROM (
             SELECT 
                 SUM(nb_modules) * 3.3 AS deployed_storage,
-                COUNT(nb_modules) * 6 AS deployed_battery_power
+                SUM(nb_modules) * 6 AS deployed_battery_power
             FROM `beem-data-warehouse.airbyte_postgresql.battery_device` d
             LEFT JOIN `beem-data-warehouse.airbyte_postgresql.battery_live_data` ld 
                 ON ld.battery_id = d.id
