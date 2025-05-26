@@ -150,16 +150,54 @@ with col4:
     st.plotly_chart(fig_cycles, use_container_width=True)
 
 # ============================
-# 🔋 Répartition du nombre de modules
+# 🔋 Répartition du nombre de modules + control_mode
 # ============================
-st.subheader("🔋 Répartition du nombre de modules")
+st.subheader("🔋 Répartition du nombre de modules et des control_mode")
 
-fig_modules = px.pie(
-    names=df["nb_modules"].fillna("Inconnu").astype(str).value_counts().index,
-    values=df["nb_modules"].fillna("Inconnu").astype(str).value_counts().values,
-    title="Répartition du nombre de modules",
-)
-st.plotly_chart(fig_modules, use_container_width=True)
+# Chargement du graphe control_mode
+@st.cache_data
+def load_control_mode_data():
+    client = bigquery.Client()
+    query = """
+        WITH virtual_table AS (
+            SELECT *
+            FROM `beem-data-warehouse.airbyte_postgresql.battery_control_parameters` p
+            JOIN `beem-data-warehouse.airbyte_postgresql.battery_device` d
+              ON d.id = p.battery_id
+            WHERE d.deleted_at IS NULL
+              AND d.replaced_by_id IS NULL
+              AND d.hardware_version LIKE 'ampace_v1'
+        )
+        SELECT 
+            control_mode,
+            COUNT(enable_feature) AS count_enable_feature
+        FROM virtual_table
+        WHERE enable_feature = TRUE
+        GROUP BY control_mode
+    """
+    return client.query(query).to_dataframe()
+
+df_control_mode = load_control_mode_data()
+
+# Graphes côte à côte
+col7, col8 = st.columns(2)
+
+with col7:
+    fig_modules = px.pie(
+        names=df["nb_modules"].fillna("Inconnu").astype(str).value_counts().index,
+        values=df["nb_modules"].fillna("Inconnu").astype(str).value_counts().values,
+        title="Répartition du nombre de modules",
+    )
+    st.plotly_chart(fig_modules, use_container_width=True)
+
+with col8:
+    fig_control_mode = px.pie(
+        df_control_mode,
+        names="control_mode",
+        values="count_enable_feature",
+        title="Répartition des control_mode (Ampace V1)",
+    )
+    st.plotly_chart(fig_control_mode, use_container_width=True)
 
 # ============================
 # ⚙️ Modes de fonctionnement par version
