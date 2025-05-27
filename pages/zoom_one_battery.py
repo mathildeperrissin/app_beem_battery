@@ -239,15 +239,20 @@ sources = {
 
 @st.cache_data
 def load_data(table_name, device_id, start_dt, end_dt):
+    # Si device_id est une chaîne qui contient un entier, on le cast en int
+    if isinstance(device_id, str) and device_id.isdigit():
+        device_id = int(device_id)
+
     query = f"""
         SELECT *
         FROM `beem-data-warehouse.extract_mongo_python.{table_name}`
-        WHERE deviceId = '{device_id}'
+        WHERE deviceId = {device_id}
           AND DATETIME(date) BETWEEN DATETIME('{start_dt}') AND DATETIME('{end_dt}')
     """
     df = client.query(query).to_dataframe()
     df["date"] = pd.to_datetime(df["date"])
     return df
+
 
 
 st.subheader("📊 Visualisation combinée des mesures")
