@@ -242,12 +242,13 @@ def load_data(table_name, device_id, start_dt, end_dt):
     query = f"""
         SELECT *
         FROM `beem-data-warehouse.extract_mongo_python.{table_name}`
-        WHERE device_id = {device_id}
+        WHERE deviceId = '{device_id}'
           AND DATETIME(date) BETWEEN DATETIME('{start_dt}') AND DATETIME('{end_dt}')
     """
     df = client.query(query).to_dataframe()
     df["date"] = pd.to_datetime(df["date"])
     return df
+
 
 st.subheader("📊 Visualisation combinée des mesures")
 
