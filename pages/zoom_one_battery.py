@@ -172,9 +172,18 @@ st.plotly_chart(fig_comp, use_container_width=True)
 # Affichage du tableau de taux de réalisation
 st.subheader("📋 Taux de réalisation par mois (%)")
 
-df_pivot["Taux de réalisation (%)"] = (
-    (df_pivot["measured"] / df_pivot["objective"]) * 100
-).round(1).replace([float("inf"), -float("inf")], 0).fillna(0)
+# Convertir les colonnes en float pour éviter les erreurs de typage
+df_pivot["measured"] = pd.to_numeric(df_pivot["measured"], errors="coerce")
+df_pivot["objective"] = pd.to_numeric(df_pivot["objective"], errors="coerce")
+
+# Éviter les divisions par 0 ou par NaN
+df_pivot["Taux de réalisation (%)"] = df_pivot.apply(
+    lambda row: round((row["measured"] / row["objective"]) * 100, 1)
+    if pd.notnull(row["measured"]) and pd.notnull(row["objective"]) and row["objective"] != 0
+    else 0,
+    axis=1
+)
+
 
 st.dataframe(
     df_pivot[["month", "objective", "measured", "Taux de réalisation (%)"]],
