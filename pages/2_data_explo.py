@@ -63,7 +63,7 @@ def load_infos():
 infos_df = load_infos()
 
 # ========== 🎛️ Filtres liés ==========
-st.subheader("🎛️ Filtrage batterie (lié par nom / n° série / device)")
+st.subheader("🎛️ Filtrage batterie (par nom / n° série / device)")
 
 lastnames = sorted(infos_df["lastname"].dropna().unique().tolist())
 serials = sorted(infos_df["serial_number"].dropna().unique().tolist())
@@ -120,78 +120,6 @@ with col6:
     mode_clean = mode_clean.replace("ampace_v1_", "").replace("ampace_v2_", "")
     st.metric("Mode de fonctionnement", mode_clean)
 
-# ========== 📜 Comparaison Objectif vs Mesuré ==========
-@st.cache_data
-def load_monthly_data(device_id):
-    device_sql = f"'{device_id}'" if isinstance(device_id, str) else str(device_id)
-
-    query_obj = f"""
-        SELECT * FROM `beem-data-warehouse.airbyte_postgresql.objective_battery`
-        WHERE battery_id = {device_sql}
-    """
-    query_prod = f"""
-        SELECT * FROM `beem-data-warehouse.airbyte_postgresql.monthly_production_battery`
-        WHERE battery_id = {device_sql}
-    """
-
-    df_obj = client.query(query_obj).to_dataframe()
-    df_prod = client.query(query_prod).to_dataframe()
-
-    df_prod["date"] = pd.to_datetime(df_prod["date"])
-    df_prod["month"] = df_prod["date"].dt.month
-    df_prod["year"] = df_prod["date"].dt.year
-
-    latest_per_month = df_prod.groupby("month")["year"].max().reset_index()
-    df_prod = pd.merge(df_prod, latest_per_month, on=["month", "year"], how="inner")
-
-    agg_obj = df_obj.groupby("month")["value"].sum().reset_index().rename(columns={"value": "objective"})
-    agg_prod = df_prod.groupby("month")["watt_hours"].sum().reset_index().rename(columns={"watt_hours": "measured"})
-
-    df_merge = pd.merge(agg_obj, agg_prod, on="month", how="outer").sort_values("month").fillna(0)
-    df_melted = df_merge.melt(id_vars="month", var_name="Source", value_name="Wh")
-
-    return df_melted, df_merge
-
-df_comparaison, df_pivot = load_monthly_data(selected_device)
-
-# Affichage du graphe Objectif vs Mesuré
-df_comparaison["month"] = df_comparaison["month"].astype(str)
-
-fig_comp = px.bar(
-    df_comparaison,
-    x="month",
-    y="Wh",
-    color="Source",
-    barmode="group",
-    title="Comparaison mensuelle : Objectif vs Production réelle",
-    labels={"month": "Mois", "Wh": "Énergie (Wh)"},
-    category_orders={"month": [str(i) for i in range(1, 13)]}
-)
-st.plotly_chart(fig_comp, use_container_width=True)
-
-# Affichage du tableau de taux de réalisation
-st.subheader("📋 Taux de réalisation par mois (%)")
-
-# Convertir les colonnes en float pour éviter les erreurs de typage
-df_pivot["measured"] = pd.to_numeric(df_pivot["measured"], errors="coerce")
-df_pivot["objective"] = pd.to_numeric(df_pivot["objective"], errors="coerce")
-
-# Éviter les divisions par 0 ou par NaN
-df_pivot["Taux de réalisation (%)"] = df_pivot.apply(
-    lambda row: round((row["measured"] / row["objective"]) * 100, 1)
-    if pd.notnull(row["measured"]) and pd.notnull(row["objective"]) and row["objective"] != 0
-    else 0,
-    axis=1
-)
-
-
-st.dataframe(
-    df_pivot[["month", "objective", "measured", "Taux de réalisation (%)"]],
-    use_container_width=True,
-    height=400
-)
-
-import plotly.graph_objects as go
 
 # ========== 🗓️ Filtres temporels ==========
 
