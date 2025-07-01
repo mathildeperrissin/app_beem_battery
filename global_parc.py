@@ -8,7 +8,7 @@ from google.cloud import bigquery
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = r"C:\Users\floch\OneDrive\Documents\GCP_key\streamlit_app\beem-data-warehouse-14a923c674a0.json"
 
 # Configuration de la page
-st.set_page_config(page_title="Infos Batteries", layout="wide")
+st.set_page_config(page_title="Infos générales par batteries", layout="wide")
 st.title("📋 Informations parc batteries")
 
 # ============================
