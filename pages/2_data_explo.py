@@ -4,6 +4,7 @@ import plotly.express as px
 from datetime import datetime
 import os
 from google.cloud import bigquery
+import plotly.graph_objects as go
 
 # Authentification
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = r"C:\Users\floch\OneDrive\Documents\GCP_key\streamlit_app\beem-data-warehouse-14a923c674a0.json"
