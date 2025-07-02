@@ -145,6 +145,19 @@ end_datetime = datetime.combine(end_date, end_time)
 start_str = start_datetime.isoformat()
 end_str = end_datetime.isoformat()
 
+# ========== 📍 Repère temporel ==========
+
+st.subheader("📍 Repère temporel (ligne verticale)")
+
+col1, col2 = st.columns(2)
+with col1:
+    repere_date = st.date_input("Date du repère", value=start_date, key="repere_date")
+with col2:
+    repere_time = st.time_input("Heure du repère", value=datetime.min.time(), key="repere_time")
+
+repere_datetime = datetime.combine(repere_date, repere_time)
+
+
 # ========== 📈 Courbes multi-sources combinées ==========
 
 sources = {
@@ -222,6 +235,15 @@ for table_name in selected_sources:
         mode="lines",
         name=meta["title"]
     ))
+    
+    # Ajout de la ligne verticale du repère
+fig.add_vline(
+    x=repere_datetime,
+    line=dict(color="red", width=2, dash="dash"),
+    annotation_text=repere_datetime.strftime("%Y-%m-%d %H:%M"),
+    annotation_position="top left"
+)
+
 
 fig.update_layout(
     title="Courbes combinées des mesures",
