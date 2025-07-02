@@ -236,12 +236,24 @@ for table_name in selected_sources:
         name=meta["title"]
     ))
     
-    # Ajout de la ligne verticale du repère
+# Ajout de la ligne verticale du repère
 fig.add_vline(
-    x=repere_datetime.isoformat(),
-    line=dict(color="red", width=2, dash="dash"),
-    annotation_text=repere_datetime.strftime("%Y-%m-%d %H:%M"),
-    annotation_position="top left"
+    x=repere_datetime,
+    line_width=2,
+    line_dash="dash",
+    line_color="red"
+)
+
+# Ajout d'une annotation manuelle au-dessus de la ligne
+fig.add_annotation(
+    x=repere_datetime,
+    y=1,
+    yref="paper",
+    text=repere_datetime.strftime("%Y-%m-%d %H:%M"),
+    showarrow=False,
+    bgcolor="red",
+    font=dict(color="white"),
+    xanchor="left"
 )
 
 
