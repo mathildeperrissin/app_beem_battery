@@ -260,10 +260,10 @@ st.subheader("📏 Réglage de l'échelle Y")
 
 max_y = st.slider(
     "Valeur maximale de l'axe Y (Wh)", 
-    min_value=500, 
+    min_value=0, 
     max_value=15000, 
     value=2000, 
-    step=500
+    step=200
 )
 
 
