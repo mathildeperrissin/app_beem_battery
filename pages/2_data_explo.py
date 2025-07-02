@@ -256,6 +256,15 @@ fig.add_annotation(
     xanchor="left"
 )
 
+st.subheader("📏 Réglage de l'échelle Y")
+
+max_y = st.slider(
+    "Valeur maximale de l'axe Y (Wh)", 
+    min_value=500, 
+    max_value=15000, 
+    value=2000, 
+    step=500
+)
 
 
 fig.update_layout(
@@ -275,8 +284,12 @@ fig.update_layout(
         ),
         rangeslider=dict(visible=False),
         type="date"
+    ),
+    yaxis=dict(
+        range=[0, max_y]
     )
 )
+
 
 st.plotly_chart(fig, use_container_width=True)
 
