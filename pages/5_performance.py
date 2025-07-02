@@ -296,7 +296,7 @@ else:
         fig = px.line(
             df_filtered,
             x="date",
-            y=["conso", "injection", "prod", "energy_charged", "energy_discharged"],
+            y=["conso", "injection", "prod"],
             title=f"Énergie - Vue journalière ({selected_month_name} {selected_year})",
             labels={"value": "Wh", "date": "Date"},
         )
@@ -307,7 +307,7 @@ else:
         fig = px.bar(
             df_grouped,
             x="Jour",
-            y=["conso", "injection", "prod", "energy_charged", "energy_discharged"],
+            y=["conso", "injection", "prod"],
             title=f"Énergie - Vue agrégée par jour ({selected_month_name} {selected_year})",
             labels={"value": "Wh", "Jour": "Jour du mois"},
         )
