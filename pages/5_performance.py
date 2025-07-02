@@ -290,6 +290,18 @@ df_mensuel = (
 
 df_mensuel["month_name"] = df_mensuel["month"].map(mois_noms)
 
+df_mensuel["taux_autonomie (%)"] = df_mensuel.apply(
+    lambda row: round(((row["prod"] - row["injection"]) / row["conso"]) * 100, 1)
+    if row["conso"] > 0 else 0,
+    axis=1
+)
+
+df_mensuel["taux_autoconsommation (%)"] = df_mensuel.apply(
+    lambda row: round(((row["prod"] - row["injection"]) / row["prod"]) * 100, 1)
+    if row["prod"] > 0 else 0,
+    axis=1
+)
+
 fig_mensuel = px.bar(
     df_mensuel,
     x="month_name",
@@ -323,3 +335,28 @@ else:
     )
     st.plotly_chart(fig, use_container_width=True)
 
+# ========== 📋 Tableau final en toute fin ==========
+st.subheader("📋 Taux mensuels : Réalisation d'objectif, Autonomie, Autoconsommation")
+
+# Fusion des sources
+df_final = pd.merge(
+    df_pivot,
+    df_mensuel[["month", "taux_autonomie (%)", "taux_autoconsommation (%)"]],
+    on="month",
+    how="left"
+)
+
+st.dataframe(
+    df_final[[
+        "month_name",
+        "Taux de réalisation (%)",
+        "taux_autonomie (%)",
+        "taux_autoconsommation (%)"
+    ]].rename(columns={
+        "month_name": "Mois",
+        "objective": "Objectif (Wh)",
+        "measured": "Mesuré (Wh)"
+    }),
+    use_container_width=True,
+    height=400
+)
