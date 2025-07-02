@@ -290,25 +290,18 @@ df_mensuel["month_name"] = df_mensuel["month"].map(mois_noms)
 for col in ["prod", "injection", "conso"]:
     df_mensuel[col] = pd.to_numeric(df_mensuel[col], errors="coerce")
 
-# Taux d'autonomie : (prod - injection) / conso
-df_mensuel["taux_autonomie (%)"] = df_mensuel.apply(
-    lambda row: round(((row["prod"] - row["injection"]) / row["conso"]) * 100, 1)
-    if pd.notnull(row["conso"]) and row["conso"] > 0 else None,
-    axis=1
-)
-
+# Taux d'autonomie : (conso - grid) / conso = (conso - injection) / conso
 # Taux d'autoconsommation : (prod - injection) / prod
-df_mensuel["taux_autoconsommation (%)"] = df_mensuel.apply(
-    lambda row: round(((row["prod"] - row["injection"]) / row["prod"]) * 100, 1)
-    if pd.notnull(row["prod"]) and row["prod"] > 0 else None,
+
+df_mensuel["taux_autonomie (%)"] = df_mensuel.apply(
+    lambda row: round(((row["conso"] - row["injection"]) / row["conso"]) * 100, 1)
+    if pd.notnull(row["conso"]) and row["conso"] > 0 and pd.notnull(row["injection"]) else None,
     axis=1
 )
 
-# Taux d'autoconsommation
 df_mensuel["taux_autoconsommation (%)"] = df_mensuel.apply(
     lambda row: round(((row["prod"] - row["injection"]) / row["prod"]) * 100, 1)
-    if pd.notnull(row["prod"]) and pd.notnull(row["injection"]) and row["prod"] > 0 and row["prod"] >= row["injection"]
-    else None,
+    if pd.notnull(row["prod"]) and row["prod"] > 0 and pd.notnull(row["injection"]) else None,
     axis=1
 )
 
