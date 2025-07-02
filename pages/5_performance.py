@@ -155,12 +155,24 @@ def load_monthly_data(device_id):
 
 df_comparaison, df_pivot = load_monthly_data(selected_device)
 
+# Dictionnaire de conversion numéro → nom du mois
+mois_noms = {
+    1: "janvier", 2: "février", 3: "mars", 4: "avril",
+    5: "mai", 6: "juin", 7: "juillet", 8: "août",
+    9: "septembre", 10: "octobre", 11: "novembre", 12: "décembre"
+}
+
+# Ajouter une colonne avec le nom du mois
+df_comparaison["month_name"] = df_comparaison["month"].astype(int).map(mois_noms)
+df_pivot["month_name"] = df_pivot["month"].astype(int).map(mois_noms)
+
+
 # Affichage du graphe Objectif vs Mesuré
 df_comparaison["month"] = df_comparaison["month"].astype(str)
 
 fig_comp = px.bar(
     df_comparaison,
-    x="month",
+    x="month_name",
     y="Wh",
     color="Source",
     barmode="group",
@@ -187,10 +199,12 @@ df_pivot["Taux de réalisation (%)"] = df_pivot.apply(
 
 
 st.dataframe(
-    df_pivot[["month", "objective", "measured", "Taux de réalisation (%)"]],
+    df_pivot[["month_name", "objective", "measured", "Taux de réalisation (%)"]]
+    .rename(columns={"month_name": "Mois", "objective": "Objectif (Wh)", "measured": "Mesuré (Wh)"}),
     use_container_width=True,
     height=400
 )
+
 
 
 
