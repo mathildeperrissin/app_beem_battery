@@ -280,6 +280,29 @@ month_options = [mois_noms[m] for m in available_months]
 selected_month_name = st.selectbox("Mois", month_options)
 selected_month = {v: k for k, v in mois_noms.items()}[selected_month_name]
 
+# ========== 📊 Visualisation mensuelle agrégée sur l'année sélectionnée ==========
+df_mensuel = (
+    df_device[df_device["year"] == selected_year]
+    .groupby("month")
+    .sum(numeric_only=True)
+    .reset_index()
+)
+
+df_mensuel["month_name"] = df_mensuel["month"].map(mois_noms)
+
+fig_mensuel = px.bar(
+    df_mensuel,
+    x="month_name",
+    y=["conso", "injection", "prod"],
+    title=f"Énergie - Agrégation mensuelle ({selected_year})",
+    labels={"value": "Wh", "month_name": "Mois"},
+)
+
+st.plotly_chart(fig_mensuel, use_container_width=True)
+
+
+
+
 # ========== 📊 Affichage du graphe ==========
 df_filtered = df_device[
     (df_device["year"] == selected_year) & (df_device["month"] == selected_month)
