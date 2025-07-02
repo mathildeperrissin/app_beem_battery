@@ -290,15 +290,23 @@ df_mensuel = (
 
 df_mensuel["month_name"] = df_mensuel["month"].map(mois_noms)
 
+# Forcer les colonnes à être numériques
+for col in ["prod", "injection", "conso"]:
+    df_mensuel[col] = pd.to_numeric(df_mensuel[col], errors="coerce")
+
+# Taux d'autonomie
 df_mensuel["taux_autonomie (%)"] = df_mensuel.apply(
     lambda row: round(((row["prod"] - row["injection"]) / row["conso"]) * 100, 1)
-    if row["conso"] > 0 else 0,
+    if pd.notnull(row["prod"]) and pd.notnull(row["injection"]) and pd.notnull(row["conso"]) and row["conso"] > 0 and row["prod"] >= row["injection"]
+    else None,
     axis=1
 )
 
+# Taux d'autoconsommation
 df_mensuel["taux_autoconsommation (%)"] = df_mensuel.apply(
     lambda row: round(((row["prod"] - row["injection"]) / row["prod"]) * 100, 1)
-    if row["prod"] > 0 else 0,
+    if pd.notnull(row["prod"]) and pd.notnull(row["injection"]) and row["prod"] > 0 and row["prod"] >= row["injection"]
+    else None,
     axis=1
 )
 
