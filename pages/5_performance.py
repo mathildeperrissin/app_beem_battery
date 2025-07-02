@@ -253,38 +253,34 @@ st.dataframe(
 )
 
 
-
 df_daily = load_daily_energy_data()
 df_device = df_daily[df_daily["device_id"] == selected_device]
 
-# ========== 🎛️ Filtres vue et période ==========
-st.subheader("📊 Visualisation énergie : quotidienne ou mensuelle")
+# ========== 📆 Sélecteur de période ==========
+st.subheader("📊 Visualisation mensuelle de l'énergie")
 
-# Choix du type de visualisation
-view_mode = st.radio("Vue", ["Journalière", "Mensuelle"], horizontal=True)
-
-# Convertir la date et ajouter mois / année
 df_device["date"] = pd.to_datetime(df_device["date"])
 df_device["month"] = df_device["date"].dt.month
 df_device["year"] = df_device["date"].dt.year
 
-# Liste des années dispo
-available_years = sorted(df_device["year"].dropna().unique())
-selected_year = st.selectbox("Année", available_years, index=len(available_years) - 1)
-
-# Mois au format lisible
+# Dictionnaire mois lisible
 mois_noms = {
     1: "janvier", 2: "février", 3: "mars", 4: "avril",
     5: "mai", 6: "juin", 7: "juillet", 8: "août",
     9: "septembre", 10: "octobre", 11: "novembre", 12: "décembre"
 }
 df_device["month_name"] = df_device["month"].map(mois_noms)
+
+# Filtres année + mois
+available_years = sorted(df_device["year"].unique())
+selected_year = st.selectbox("Année", available_years, index=len(available_years) - 1)
+
 available_months = df_device[df_device["year"] == selected_year]["month"].sort_values().unique()
 month_options = [mois_noms[m] for m in available_months]
 selected_month_name = st.selectbox("Mois", month_options)
 selected_month = {v: k for k, v in mois_noms.items()}[selected_month_name]
 
-# Filtrage final
+# ========== 📊 Affichage du graphe ==========
 df_filtered = df_device[
     (df_device["year"] == selected_year) & (df_device["month"] == selected_month)
 ]
@@ -292,24 +288,15 @@ df_filtered = df_device[
 if df_filtered.empty:
     st.warning("Aucune donnée disponible pour cette période.")
 else:
-    if view_mode == "Journalière":
-        fig = px.line(
-            df_filtered,
-            x="date",
-            y=["conso", "injection", "prod"],
-            title=f"Énergie - Vue journalière ({selected_month_name} {selected_year})",
-            labels={"value": "Wh", "date": "Date"},
-        )
-    else:  # Mensuelle = agrégée par jour du mois
-        df_grouped = df_filtered.groupby(df_filtered["date"].dt.day).sum(numeric_only=True).reset_index()
-        df_grouped.rename(columns={"date": "Jour"}, inplace=True)
+    df_grouped = df_filtered.groupby(df_filtered["date"].dt.day).sum(numeric_only=True).reset_index()
+    df_grouped.rename(columns={"date": "Jour"}, inplace=True)
 
-        fig = px.bar(
-            df_grouped,
-            x="Jour",
-            y=["conso", "injection", "prod"],
-            title=f"Énergie - Vue agrégée par jour ({selected_month_name} {selected_year})",
-            labels={"value": "Wh", "Jour": "Jour du mois"},
-        )
-
+    fig = px.bar(
+        df_grouped,
+        x="Jour",
+        y=["conso", "injection", "prod", "energy_charged", "energy_discharged"],
+        title=f"Énergie - Agrégation quotidienne ({selected_month_name} {selected_year})",
+        labels={"value": "Wh", "Jour": "Jour du mois"},
+    )
     st.plotly_chart(fig, use_container_width=True)
+
