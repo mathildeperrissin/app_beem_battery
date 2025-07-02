@@ -7,7 +7,7 @@ from google.cloud import bigquery
 import plotly.graph_objects as go
 
 # Authentification
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = r"C:\Users\floch\OneDrive\Documents\GCP_key\streamlit_app\beem-data-warehouse-14a923c674a0.json"
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = r"C:\\Users\\floch\\OneDrive\\Documents\\GCP_key\\streamlit_app\\beem-data-warehouse-14a923c674a0.json"
 client = bigquery.Client()
 
 st.set_page_config(page_title="Zoom Battery", layout="wide")
@@ -29,8 +29,6 @@ def load_infos():
         AND d.replaced_by_id IS NULL
         AND d.warranty_status = 'activated'
         AND d.serial_number NOT IN ('021LOLL190154M','021LOLF080008M')
-        --AND u.id NOT IN (22, 4395, 34538)
-        --AND d.hardware_version = 'ampace_v1'
     ),
 
     serial_counts AS (
@@ -45,10 +43,7 @@ def load_infos():
       FROM device_user_data dud
       JOIN serial_counts sc ON dud.serial_number = sc.serial_number
       WHERE 
-        -- si le serial est unique, on garde tout
         sc.nb = 1
-
-        -- si le serial est dupliqué, on garde seulement si email ne se termine pas par @beemenergy
         OR (
         sc.nb > 1
        AND dud.email NOT LIKE '%@beemenergy.com'
@@ -108,6 +103,7 @@ def load_daily_energy_data():
     ORDER BY device_id, date
     """
     return client.query(query).to_dataframe()
+
 
 
 # ========== 🎛️ Filtres liés ==========
@@ -294,11 +290,17 @@ df_mensuel["month_name"] = df_mensuel["month"].map(mois_noms)
 for col in ["prod", "injection", "conso"]:
     df_mensuel[col] = pd.to_numeric(df_mensuel[col], errors="coerce")
 
-# Taux d'autonomie
+# Taux d'autonomie : (prod - injection) / conso
 df_mensuel["taux_autonomie (%)"] = df_mensuel.apply(
     lambda row: round(((row["prod"] - row["injection"]) / row["conso"]) * 100, 1)
-    if pd.notnull(row["prod"]) and pd.notnull(row["injection"]) and pd.notnull(row["conso"]) and row["conso"] > 0 and row["prod"] >= row["injection"]
-    else None,
+    if pd.notnull(row["conso"]) and row["conso"] > 0 else None,
+    axis=1
+)
+
+# Taux d'autoconsommation : (prod - injection) / prod
+df_mensuel["taux_autoconsommation (%)"] = df_mensuel.apply(
+    lambda row: round(((row["prod"] - row["injection"]) / row["prod"]) * 100, 1)
+    if pd.notnull(row["prod"]) and row["prod"] > 0 else None,
     axis=1
 )
 
