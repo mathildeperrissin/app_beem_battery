@@ -294,7 +294,7 @@ else:
     fig = px.bar(
         df_grouped,
         x="Jour",
-        y=["conso", "injection", "prod", "energy_charged", "energy_discharged"],
+        y=["conso", "injection", "prod"],
         title=f"Énergie - Agrégation quotidienne ({selected_month_name} {selected_year})",
         labels={"value": "Wh", "Jour": "Jour du mois"},
     )
