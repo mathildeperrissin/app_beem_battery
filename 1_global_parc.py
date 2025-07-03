@@ -84,28 +84,53 @@ def load_info():
 df = load_info()
 
 # ============================
-# 🗺️ Carte interactive
+# 🗺️ Cartes interactives séparées par version
 # ============================
-st.subheader("🗺️ Carte des batteries par mode de fonctionnement")
+st.subheader("🗺️ Cartes des batteries par mode de fonctionnement")
 
 df["clean_mode"] = df["working_mode_code"].fillna("Inconnu").astype(str)
 df["clean_mode"] = df["clean_mode"].str.replace(r"^ampace_", "", regex=True)
-df["point_size"] = 3 
+df["point_size"] = 3
 
-fig_map = px.scatter_mapbox(
-    df,
-    lat="latitude",
-    lon="longitude",
-    color="clean_mode",
-    hover_name="lastname",
-    size="point_size",
-    hover_data=["id", "hardware_version", "nb_cycles"],
-    zoom=5,
-    height=600
-)
-fig_map.update_layout(mapbox_style="open-street-map")
-fig_map.update_layout(margin={"r":0,"t":0,"l":0,"b":0})
-st.plotly_chart(fig_map, use_container_width=True)
+df_v1 = df[df["hardware_version"] == "ampace_v1"]
+df_v2 = df[df["hardware_version"] == "ampace_v2"]
+
+col_map1, col_map2 = st.columns(2)
+
+with col_map1:
+    st.markdown("**Ampace V1**")
+    fig_map_v1 = px.scatter_mapbox(
+        df_v1,
+        lat="latitude",
+        lon="longitude",
+        color="clean_mode",
+        hover_name="lastname",
+        size="point_size",
+        hover_data=["id", "hardware_version", "nb_cycles"],
+        zoom=5,
+        height=600
+    )
+    fig_map_v1.update_layout(mapbox_style="open-street-map")
+    fig_map_v1.update_layout(margin={"r":0,"t":0,"l":0,"b":0})
+    st.plotly_chart(fig_map_v1, use_container_width=True)
+
+with col_map2:
+    st.markdown("**Ampace V2**")
+    fig_map_v2 = px.scatter_mapbox(
+        df_v2,
+        lat="latitude",
+        lon="longitude",
+        color="clean_mode",
+        hover_name="lastname",
+        size="point_size",
+        hover_data=["id", "hardware_version", "nb_cycles"],
+        zoom=5,
+        height=600
+    )
+    fig_map_v2.update_layout(mapbox_style="open-street-map")
+    fig_map_v2.update_layout(margin={"r":0,"t":0,"l":0,"b":0})
+    st.plotly_chart(fig_map_v2, use_container_width=True)
+
 
 # ============================
 # 🔧 Versions matérielles
