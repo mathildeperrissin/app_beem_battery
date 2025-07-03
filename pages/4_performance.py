@@ -271,10 +271,7 @@ df_device["month_name"] = df_device["month"].map(mois_noms)
 available_years = sorted(df_device["year"].unique())
 selected_year = st.selectbox("Année", available_years, index=len(available_years) - 1)
 
-available_months = df_device[df_device["year"] == selected_year]["month"].sort_values().unique()
-month_options = [mois_noms[m] for m in available_months]
-selected_month_name = st.selectbox("Mois", month_options)
-selected_month = {v: k for k, v in mois_noms.items()}[selected_month_name]
+
 
 # ========== 📊 Visualisation mensuelle agrégée sur l'année sélectionnée ==========
 df_mensuel = (
@@ -315,7 +312,10 @@ fig_mensuel = px.bar(
 
 st.plotly_chart(fig_mensuel, use_container_width=True)
 
-
+available_months = df_device[df_device["year"] == selected_year]["month"].sort_values().unique()
+month_options = [mois_noms[m] for m in available_months]
+selected_month_name = st.selectbox("Mois", month_options)
+selected_month = {v: k for k, v in mois_noms.items()}[selected_month_name]
 
 
 # ========== 📊 Affichage du graphe ==========
