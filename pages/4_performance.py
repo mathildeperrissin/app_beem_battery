@@ -209,6 +209,14 @@ mois_noms = {
 df_comparaison["month_name"] = df_comparaison["month"].astype(int).map(mois_noms)
 df_pivot["month_name"] = df_pivot["month"].astype(int).map(mois_noms)
 
+# Calcul du taux de réalisation (%)
+df_pivot["Taux de réalisation (%)"] = df_pivot.apply(
+    lambda row: round((row["measured"] / row["objective"]) * 100, 1)
+    if pd.notnull(row["measured"]) and pd.notnull(row["objective"]) and row["objective"] != 0
+    else 0,
+    axis=1
+)
+
 
 # Affichage du graphe Objectif vs Mesuré
 df_comparaison["month"] = df_comparaison["month"].astype(str)
