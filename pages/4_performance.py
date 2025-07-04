@@ -314,28 +314,57 @@ else:
     )
     st.plotly_chart(fig, use_container_width=True)
 
-# ========== 📋 Tableau final en toute fin ==========
-st.subheader("📋 Taux mensuels : Réalisation d'objectif, Autonomie, Autoconsommation")
+# ========== 📋 Nouveau tableau final : taux recalculés proprement ==========
 
-# Fusion des sources
+# Recalcul des taux autonomie / autoconsommation depuis les données journalières
+df_energy_mensuel = (
+    df_device
+    .groupby(["year", "month"])
+    .agg({
+        "prod": "sum",
+        "conso": "sum",
+        "injection": "sum"
+    })
+    .reset_index()
+)
+
+# Calculs des taux
+df_energy_mensuel["taux_autonomie (%)"] = df_energy_mensuel.apply(
+    lambda row: round(((row["conso"] - row["injection"]) / row["conso"]) * 100, 1)
+    if pd.notnull(row["conso"]) and row["conso"] > 0 else None,
+    axis=1
+)
+
+df_energy_mensuel["taux_autoconsommation (%)"] = df_energy_mensuel.apply(
+    lambda row: round(((row["prod"] - row["injection"]) / row["prod"]) * 100, 1)
+    if pd.notnull(row["prod"]) and row["prod"] > 0 else None,
+    axis=1
+)
+
+# Filtrer sur l'année sélectionnée
+df_energy_mensuel = df_energy_mensuel[df_energy_mensuel["year"] == selected_year]
+
+# Ajout des noms de mois
+df_energy_mensuel["month_name"] = df_energy_mensuel["month"].map(mois_noms)
+
+# Fusion avec taux de réalisation
 df_final = pd.merge(
-    df_pivot,
-    df_mensuel[["month", "taux_autonomie (%)", "taux_autoconsommation (%)"]],
+    df_pivot[["month", "month_name", "Taux de réalisation (%)"]],
+    df_energy_mensuel[["month", "taux_autonomie (%)", "taux_autoconsommation (%)"]],
     on="month",
     how="left"
 )
 
+# Affichage
+st.subheader("📋 Taux mensuels : Réalisation, Autonomie, Autoconsommation")
 st.dataframe(
-    df_final[[
-        "month_name",
+    df_final.rename(columns={"month_name": "Mois"})[[
+        "Mois",
         "Taux de réalisation (%)",
         "taux_autonomie (%)",
         "taux_autoconsommation (%)"
-    ]].rename(columns={
-        "month_name": "Mois",
-        "objective": "Objectif (Wh)",
-        "measured": "Mesuré (Wh)"
-    }),
+    ]],
     use_container_width=True,
     height=400
 )
+
