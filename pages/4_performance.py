@@ -275,16 +275,23 @@ for col in ["prod", "injection", "conso"]:
 # Taux d'autoconsommation : (prod - injection) / prod
 
 df_mensuel["taux_autonomie (%)"] = df_mensuel.apply(
-    lambda row: round(((row["conso"] - row["injection"]) / row["conso"]) * 100, 1)
-    if pd.notnull(row["conso"]) and row["conso"] > 0 and pd.notnull(row["injection"]) else None,
+    lambda row: round(
+        max(0, min(100, ((row["conso"] - row["injection"]) / row["conso"]) * 100)),
+        1
+    ) if pd.notnull(row["conso"]) and row["conso"] > 0 and pd.notnull(row["injection"])
+    else None,
     axis=1
 )
 
 df_mensuel["taux_autoconsommation (%)"] = df_mensuel.apply(
-    lambda row: round(((row["prod"] - row["injection"]) / row["prod"]) * 100, 1)
-    if pd.notnull(row["prod"]) and row["prod"] > 0 and pd.notnull(row["injection"]) else None,
+    lambda row: round(
+        max(0, min(100, ((row["prod"] - row["injection"]) / row["prod"]) * 100)),
+        1
+    ) if pd.notnull(row["prod"]) and row["prod"] > 0 and pd.notnull(row["injection"])
+    else None,
     axis=1
 )
+
 
 fig_mensuel = px.bar(
     df_mensuel,
@@ -338,16 +345,23 @@ df_energy_mensuel = (
 
 # Calculs des taux
 df_energy_mensuel["taux_autonomie (%)"] = df_energy_mensuel.apply(
-    lambda row: round(((row["conso"] - row["injection"]) / row["conso"]) * 100, 1)
-    if pd.notnull(row["conso"]) and row["conso"] > 0 else None,
+    lambda row: round(
+        max(0, min(100, ((row["conso"] - row["injection"]) / row["conso"]) * 100)),
+        1
+    ) if pd.notnull(row["conso"]) and row["conso"] > 0 and pd.notnull(row["injection"])
+    else None,
     axis=1
 )
 
 df_energy_mensuel["taux_autoconsommation (%)"] = df_energy_mensuel.apply(
-    lambda row: round(((row["prod"] - row["injection"]) / row["prod"]) * 100, 1)
-    if pd.notnull(row["prod"]) and row["prod"] > 0 else None,
+    lambda row: round(
+        max(0, min(100, ((row["prod"] - row["injection"]) / row["prod"]) * 100)),
+        1
+    ) if pd.notnull(row["prod"]) and row["prod"] > 0 and pd.notnull(row["injection"])
+    else None,
     axis=1
 )
+
 
 # Filtrer sur l'année sélectionnée
 df_energy_mensuel = df_energy_mensuel[df_energy_mensuel["year"] == selected_year]
