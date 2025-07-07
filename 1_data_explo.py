@@ -336,6 +336,8 @@ df_logs_chart = df_logs_chart[
     (df_logs_chart["date"] >= pd.to_datetime(start_str).tz_localize("UTC")) &
     (df_logs_chart["date"] <= pd.to_datetime(end_str).tz_localize("UTC"))
 ]
+df_logs_chart = df_logs_chart[df_logs_chart["message"].isin(selected_log_messages)]
+
 
 
 # Optionnel : filtrer par type (affiche tout par défaut)
