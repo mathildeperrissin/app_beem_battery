@@ -293,6 +293,56 @@ fig.update_layout(
 
 st.plotly_chart(fig, use_container_width=True)
 
+# ========== 📍 Graphique séparé des logs sur la même échelle de temps ==========
+
+st.subheader("📍 Logs 'fault' ou 'warning' sur la période sélectionnée")
+
+# Filtrage des logs dans la plage temporelle sélectionnée
+df_logs_chart = df_filtered.copy()
+df_logs_chart = df_logs_chart[(df_logs_chart["date"] >= pd.to_datetime(start_str)) &
+                              (df_logs_chart["date"] <= pd.to_datetime(end_str))]
+
+if df_logs_chart.empty:
+    st.info("Aucun log 'fault' ou 'warning' sur cette période.")
+else:
+    fig_logs = go.Figure()
+
+    # Positions verticales distinctes pour différencier les types
+    y_positions = {"fault": 1, "warning": 2}
+    colors = {"fault": "orange", "warning": "green"}
+
+    for log_type in df_logs_chart["type"].unique():
+        df_sub = df_logs_chart[df_logs_chart["type"] == log_type]
+        fig_logs.add_trace(go.Scatter(
+            x=df_sub["date"],
+            y=[y_positions[log_type]] * len(df_sub),
+            mode="markers",
+            name=log_type,
+            marker=dict(symbol="line-ns-open", size=10, color=colors[log_type]),
+            hovertext=df_sub["message"],
+            hoverinfo="text+x"
+        ))
+
+    fig_logs.update_layout(
+        title="Logs 'fault' / 'warning' (barres verticales)",
+        xaxis_title="Date",
+        yaxis=dict(
+            title="Type",
+            tickvals=[1, 2],
+            ticktext=["fault", "warning"],
+            range=[0.5, 2.5]
+        ),
+        height=300,
+        xaxis=dict(
+            range=[start_datetime, end_datetime],
+            type="date"
+        ),
+        showlegend=True
+    )
+
+    st.plotly_chart(fig_logs, use_container_width=True)
+
+
 # ========== 🔍 Valeurs proches d'une date/heure sélectionnée ==========
 
 st.subheader("📍 Obtenir les valeurs les plus proches d'un moment donné")
