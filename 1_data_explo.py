@@ -349,7 +349,12 @@ else:
             y=[y_positions[log_type]] * len(df_sub),
             mode="markers",
             name=log_type,
-            marker=dict(symbol="line-ns-open", size=10, color=colors[log_type]),
+            marker=dict(
+                symbol="line-ns",  # version pleine, pas "open"
+                size=30,            # plus grand (hauteur visuelle de la barre)
+                color=colors[log_type],
+                line=dict(width=4)  # plus épais (épaisseur du trait)
+            ),
             hovertext=df_sub["message"],
             hoverinfo="text+x"
         ))
