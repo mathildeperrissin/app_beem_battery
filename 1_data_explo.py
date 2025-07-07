@@ -319,27 +319,7 @@ def load_logs_all(device_id):
 # Charger les logs si ce n’est pas déjà fait
 df_logs_all = load_logs_all(selected_device)
 
-# Séparation des messages par type
-fault_messages = df_logs_all[df_logs_all["type"] == "fault"]["message"].dropna().unique().tolist()
-warning_messages = df_logs_all[df_logs_all["type"] == "warning"]["message"].dropna().unique().tolist()
-fault_messages.sort()
-warning_messages.sort()
 
-col1, col2 = st.columns(2)
-
-with col1:
-    selected_fault_messages = st.multiselect(
-        "⚠️ Messages FAULT à afficher",
-        options=fault_messages,
-        default=fault_messages
-    )
-
-with col2:
-    selected_warning_messages = st.multiselect(
-        "⚠️ Messages WARNING à afficher",
-        options=warning_messages,
-        default=warning_messages
-    )
 
 
 
@@ -348,10 +328,6 @@ df_logs_chart = df_logs_all.copy()
 df_logs_chart = df_logs_chart[
     (df_logs_chart["date"] >= pd.to_datetime(start_str).tz_localize("UTC")) &
     (df_logs_chart["date"] <= pd.to_datetime(end_str).tz_localize("UTC"))
-]
-df_logs_chart = df_logs_chart[
-    (df_logs_chart["message"].isin(selected_fault_messages) & (df_logs_chart["type"] == "fault")) |
-    (df_logs_chart["message"].isin(selected_warning_messages) & (df_logs_chart["type"] == "warning"))
 ]
 
 
