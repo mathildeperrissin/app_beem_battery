@@ -350,10 +350,10 @@ else:
             mode="markers",
             name=log_type,
             marker=dict(
-                symbol="line-ns-open",  # version pleine, pas "open"
+                symbol="line-ns-open",  
                 size=30,            # plus grand (hauteur visuelle de la barre)
                 color=colors[log_type],
-                line=dict(width=3)  # plus épais (épaisseur du trait)
+                line=dict(width=2)  # plus épais (épaisseur du trait)
             ),
             hovertext=df_sub["message"],
             hoverinfo="text+x"
