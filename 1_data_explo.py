@@ -350,7 +350,7 @@ else:
             mode="markers",
             name=log_type,
             marker=dict(
-                symbol="line-ns",  # version pleine, pas "open"
+                symbol="line-ns-open",  # version pleine, pas "open"
                 size=30,            # plus grand (hauteur visuelle de la barre)
                 color=colors[log_type],
                 line=dict(width=3)  # plus épais (épaisseur du trait)
