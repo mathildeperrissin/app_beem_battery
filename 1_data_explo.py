@@ -340,7 +340,7 @@ if df_logs_chart.empty:
 else:
     fig_logs = go.Figure()
     y_positions = {"fault": 1, "warning": 2}
-    colors = {"fault": "orange", "warning": "green"}
+    colors = {"fault": "red", "warning": "orange"}
 
     for log_type in df_logs_chart["type"].unique():
         df_sub = df_logs_chart[df_logs_chart["type"] == log_type]
@@ -353,7 +353,7 @@ else:
                 symbol="line-ns",  # version pleine, pas "open"
                 size=30,            # plus grand (hauteur visuelle de la barre)
                 color=colors[log_type],
-                line=dict(width=4)  # plus épais (épaisseur du trait)
+                line=dict(width=3)  # plus épais (épaisseur du trait)
             ),
             hovertext=df_sub["message"],
             hoverinfo="text+x"
