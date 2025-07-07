@@ -303,8 +303,6 @@ st.plotly_chart(fig, use_container_width=True)
 
 st.subheader("📍 Logs 'fault' ou 'warning' sur la période sélectionnée")
 
-# Assure-toi que df_logs_all existe (il est défini en bas de ton script actuel)
-# Donc déplace la définition de df_logs_all ici si besoin
 
 @st.cache_data
 def load_logs_all(device_id):
@@ -320,6 +318,17 @@ def load_logs_all(device_id):
 
 # Charger les logs si ce n’est pas déjà fait
 df_logs_all = load_logs_all(selected_device)
+
+# Extraire tous les types de messages disponibles dans la période sélectionnée
+all_log_messages = df_logs_all["message"].dropna().unique().tolist()
+all_log_messages.sort()
+
+selected_log_messages = st.multiselect(
+    "🪧 Messages à afficher dans le graphique",
+    options=all_log_messages,
+    default=all_log_messages  # tous affichés par défaut
+)
+
 
 # Appliquer les mêmes filtres temporels + types sélectionnés (on met tout par défaut ici)
 df_logs_chart = df_logs_all.copy()
