@@ -297,17 +297,38 @@ st.plotly_chart(fig, use_container_width=True)
 
 st.subheader("📍 Logs 'fault' ou 'warning' sur la période sélectionnée")
 
-# Filtrage des logs dans la plage temporelle sélectionnée
-df_logs_chart = df_filtered.copy()
+# Assure-toi que df_logs_all existe (il est défini en bas de ton script actuel)
+# Donc déplace la définition de df_logs_all ici si besoin
+
+@st.cache_data
+def load_logs_all(device_id):
+    query = f"""
+        SELECT date, type, message, cleared, cleared_at, cleared_by
+        FROM `beem-data-warehouse.airbyte_postgresql.battery_device_log`
+        WHERE battery_id = {device_id}
+          AND type IN ('fault', 'warning')
+    """
+    df = client.query(query).to_dataframe()
+    df["date"] = pd.to_datetime(df["date"], utc=True)
+    return df.sort_values("date", ascending=False)
+
+# Charger les logs si ce n’est pas déjà fait
+df_logs_all = load_logs_all(selected_device)
+
+# Appliquer les mêmes filtres temporels + types sélectionnés (on met tout par défaut ici)
+df_logs_chart = df_logs_all.copy()
 df_logs_chart = df_logs_chart[(df_logs_chart["date"] >= pd.to_datetime(start_str)) &
                               (df_logs_chart["date"] <= pd.to_datetime(end_str))]
+
+# Optionnel : filtrer par type (affiche tout par défaut)
+log_types_to_show = ["fault", "warning"]  # ou lis depuis type_filter si tu veux réutiliser la sélection utilisateur
+
+df_logs_chart = df_logs_chart[df_logs_chart["type"].isin(log_types_to_show)]
 
 if df_logs_chart.empty:
     st.info("Aucun log 'fault' ou 'warning' sur cette période.")
 else:
     fig_logs = go.Figure()
-
-    # Positions verticales distinctes pour différencier les types
     y_positions = {"fault": 1, "warning": 2}
     colors = {"fault": "orange", "warning": "green"}
 
@@ -341,6 +362,7 @@ else:
     )
 
     st.plotly_chart(fig_logs, use_container_width=True)
+
 
 
 # ========== 🔍 Valeurs proches d'une date/heure sélectionnée ==========
