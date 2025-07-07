@@ -285,10 +285,16 @@ fig.update_layout(
         rangeslider=dict(visible=False),
         type="date"
     ),
-    yaxis=dict(
-        range=[0, max_y]
+    yaxis=dict(range=[0, max_y]),
+    legend=dict(
+        orientation="h",
+        yanchor="bottom",
+        y=1.02,
+        xanchor="left",
+        x=0
     )
 )
+
 
 
 st.plotly_chart(fig, use_container_width=True)
@@ -361,7 +367,14 @@ else:
             range=[start_datetime, end_datetime],
             type="date"
         ),
-        showlegend=True
+        showlegend=True,
+        legend=dict(
+        orientation="h",
+        yanchor="bottom",
+        y=1.02,
+        xanchor="left",
+        x=0
+    )
     )
 
     st.plotly_chart(fig_logs, use_container_width=True)
