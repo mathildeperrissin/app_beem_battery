@@ -273,19 +273,15 @@ fig.update_layout(
     yaxis_title="Wh",
     legend_title="Type de mesure",
     height=600,
+    margin=dict(l=0, r=0, t=40, b=0),
     xaxis=dict(
-        rangeselector=dict(
-            buttons=list([
-                dict(count=1, label="1j", step="day", stepmode="backward"),
-                dict(count=7, label="1s", step="day", stepmode="backward"),
-                dict(count=1, label="1m", step="month", stepmode="backward"),
-                dict(step="all", label="Tout")
-            ])
-        ),
-        rangeslider=dict(visible=False),
-        type="date"
+        range=[start_datetime, end_datetime],
+        type="date",
+        fixedrange=True
     ),
-    yaxis=dict(range=[0, max_y]),
+    yaxis=dict(
+        range=[0, max_y]
+    ),
     legend=dict(
         orientation="h",
         yanchor="bottom",
@@ -294,6 +290,7 @@ fig.update_layout(
         x=0
     )
 )
+
 
 
 
