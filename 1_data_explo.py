@@ -317,8 +317,11 @@ df_logs_all = load_logs_all(selected_device)
 
 # Appliquer les mêmes filtres temporels + types sélectionnés (on met tout par défaut ici)
 df_logs_chart = df_logs_all.copy()
-df_logs_chart = df_logs_chart[(df_logs_chart["date"] >= pd.to_datetime(start_str)) &
-                              (df_logs_chart["date"] <= pd.to_datetime(end_str))]
+df_logs_chart = df_logs_chart[
+    (df_logs_chart["date"] >= pd.to_datetime(start_str).tz_localize("UTC")) &
+    (df_logs_chart["date"] <= pd.to_datetime(end_str).tz_localize("UTC"))
+]
+
 
 # Optionnel : filtrer par type (affiche tout par défaut)
 log_types_to_show = ["fault", "warning"]  # ou lis depuis type_filter si tu veux réutiliser la sélection utilisateur
