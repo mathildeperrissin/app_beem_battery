@@ -84,7 +84,6 @@ with col4:
 
 bug_datetime = datetime.combine(selected_date, time(bug_hour, bug_minute))
 
-
 if st.button("Charger les données"):
     with st.spinner("Chargement..."):
         records = load_json_data(serial_number, selected_date, start_time, end_time)
@@ -97,16 +96,17 @@ if st.button("Charger les données"):
         st.write("🧾 Aperçu des données :")
         st.dataframe(df.head())
 
-        # Sélection des index
+        num_cols = df.shape[1] - 1
+
+        # Sélection des index pour le graphique combiné
         st.markdown("### 🎯 Sélection des index pour le graphique combiné")
         selected_indices = st.multiselect(
-           f"Colonnes disponibles (0 à {num_cols - 1})",
+            f"Colonnes disponibles (0 à {num_cols - 1})",
             options=list(range(num_cols)),
-           default=list(range(min(5, num_cols)))  # jusqu'à 5 par défaut
+            default=list(range(min(5, num_cols)))
         )
 
-
-        # ✅ Graphique combiné en haut
+        # ✅ Graphique combiné
         if selected_indices:
             fig_combined = go.Figure()
             for idx in selected_indices:
@@ -122,14 +122,13 @@ if st.button("Charger les données"):
             )
             st.plotly_chart(fig_combined, use_container_width=True)
 
-        # ✅ Graphiques individuels
+        # ✅ Graphiques individuels pour tous les index
         st.markdown("### 📉 Graphiques individuels pour tous les index")
         for idx in range(num_cols):
-         fig = px.line(
-           df, x="date", y=idx,
-            title=f"Index {idx}",
-          labels={"date": "Heure", str(idx): "Valeur"}
-           )
-      fig.add_vline(x=bug_datetime, line_dash="dash", line_color="red")
-    st.plotly_chart(fig, use_container_width=True)
-
+            fig = px.line(
+                df, x="date", y=idx,
+                title=f"Index {idx}",
+                labels={"date": "Heure", str(idx): "Valeur"}
+            )
+            fig.add_vline(x=bug_datetime, line_dash="dash", line_color="red")
+            st.plotly_chart(fig, use_container_width=True)
