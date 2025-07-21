@@ -10,21 +10,26 @@ import plotly.graph_objects as go
 # Configuration GCP
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = r"C:\Users\floch\OneDrive\Documents\GCP_key\streamlit_app\beem-data-warehouse-14a923c674a0.json"
 BUCKET_NAME = "beem-backend-battery-warranty"
+INDEX_BUCKET_NAME = "beem-battery-indexes"  # nouveau
 
 # --- Chargement des fichiers JSON depuis GCS ---
 @st.cache_data
 def load_json_data(serial_number, selected_date, start_time, end_time):
     client = storage.Client()
-    bucket = client.bucket(BUCKET_NAME)
+    data_bucket = client.bucket(BUCKET_NAME)
+    index_bucket = client.bucket(INDEX_BUCKET_NAME)
 
-    index_file = f"{serial_number}_index.json"
-    if not os.path.exists(index_file):
-        st.error(f"Index introuvable : {index_file}")
+    # Charger l’index depuis le bucket d’index
+    index_blob_path = f"{serial_number}_index.json"
+    index_blob = index_bucket.blob(index_blob_path)
+    try:
+        content = index_blob.download_as_text()
+        index = json.loads(content)
+    except Exception as e:
+        st.error(f"❌ Erreur de lecture de l’index JSON `{index_blob_path}` : {e}")
         return []
 
-    with open(index_file, "r") as f:
-        index = json.load(f)
-
+    # Filtrer les fichiers
     filtered_files = []
     for entry in index:
         try:
@@ -32,12 +37,13 @@ def load_json_data(serial_number, selected_date, start_time, end_time):
             if dt.date() == selected_date and start_time <= dt.time() <= end_time:
                 filtered_files.append((dt, entry["path"]))
         except Exception as e:
-            print(f"Erreur parsing date dans {entry['path']} : {e}")
+            print(f"Erreur parsing date dans {entry.get('path', '?')} : {e}")
 
+    # Télécharger les fichiers de données
     records = []
     for dt, path in filtered_files:
         try:
-            blob = bucket.blob(path)
+            blob = data_bucket.blob(path)
             content = blob.download_as_text()
             parsed = json.loads(content)
             records.append({
