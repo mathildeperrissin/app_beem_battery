@@ -91,10 +91,10 @@ if st.button("Charger les données"):
         st.markdown("### 🎯 Sélection des index à afficher")
         num_cols = df.shape[1] - 1
         selected_indices = st.multiselect(
-            f"Colonnes disponibles (0 à {num_cols - 1})",
-            options=list(range(num_cols)),
-            default=[0, 1]
-        )
+             f"Colonnes disponibles (0 à {num_cols - 1})",
+             options=list(range(num_cols)),
+             default=list(range(num_cols))  # ✅ toutes les colonnes par défaut
+            )
 
         # Affichage interactif avec Plotly
         for idx in selected_indices:
