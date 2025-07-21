@@ -15,34 +15,42 @@ BUCKET_NAME = "beem-backend-battery-warranty"
 def load_json_data(serial_number, date_start, date_end, hour_start, hour_end):
     client = storage.Client()
     bucket = client.bucket(BUCKET_NAME)
-    blobs = bucket.list_blobs(prefix=f"{serial_number}/")
 
-    records = []
+    # Charger l’index depuis le fichier local
+    index_file = f"{serial_number}_index.json"
+    if not os.path.exists(index_file):
+        st.error(f"Index introuvable : {index_file}")
+        return []
 
-    for blob in blobs:
-        filename = blob.name.split('/')[-1]
-        print(f"📂 Fichier trouvé : {filename}")
+    with open(index_file, "r") as f:
+        index = json.load(f)
 
+    # Filtrer les fichiers par date et heure
+    filtered_files = []
+    for entry in index:
         try:
+            dt = datetime.strptime(entry["date"], "%Y-%m-%d %H:%M:%S")
+            if date_start <= dt.date() <= date_end and hour_start <= dt.hour <= hour_end:
+                filtered_files.append((dt, entry["path"]))
+        except Exception as e:
+            print(f"Erreur parsing date dans {entry['path']} : {e}")
+
+    # Télécharger les fichiers sélectionnés
+    records = []
+    for dt, path in filtered_files:
+        try:
+            blob = bucket.blob(path)
             content = blob.download_as_text()
             parsed = json.loads(content)
-
-            parsed_date = datetime.strptime(parsed["date"], "%Y-%m-%d %H:%M:%S")
-            print(f"🟢 Date extraite : {parsed_date}")
-
-            # ✅ Filtre sur date ET heure
-            if date_start <= parsed_date.date() <= date_end and hour_start <= parsed_date.hour <= hour_end:
-                records.append({
-                    "date": parsed_date,
-                    "values": parsed["data"]
-                })
-            else:
-                print(f"⏭ Fichier ignoré : hors plage")
-
+            records.append({
+                "date": dt,
+                "values": parsed["data"]
+            })
         except Exception as e:
-            print(f"❌ Erreur fichier {filename} : {e}")
+            print(f"❌ Erreur de lecture {path} : {e}")
 
     return records
+
 
 # --- Création du DataFrame ---
 def records_to_dataframe(records):
