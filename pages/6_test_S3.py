@@ -63,8 +63,11 @@ def records_to_dataframe(records):
 st.title("Suivi de données batterie (GCS)")
 
 serial_number = st.selectbox("Numéro de série", [
-    "021LOLFO80004M", "021LOLFO80008M", "021LOLK080001M", "021LOLK080002M"  # à adapter selon tes dossiers
+    "021LOLF080004M",  # ✅ Correct
+    "021LOLF080008M",
+    "021LOLK080001M"
 ])
+
 
 col1, col2 = st.columns(2)
 with col1:
