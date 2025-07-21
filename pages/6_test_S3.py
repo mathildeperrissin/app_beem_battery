@@ -2,11 +2,10 @@ import streamlit as st
 from google.cloud import storage
 import os
 import json
-from datetime import datetime, time
+from datetime import datetime, time, timedelta
 import pandas as pd
 import plotly.express as px
-from datetime import timedelta
-
+import plotly.graph_objects as go
 
 # Configuration GCP
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = r"C:\Users\floch\OneDrive\Documents\GCP_key\streamlit_app\beem-data-warehouse-14a923c674a0.json"
@@ -77,6 +76,8 @@ with col1:
 with col2:
     end_time = st.time_input("🕒 Heure de fin", time(23, 55), step=timedelta(minutes=5))
 
+bug_time = st.time_input("🐞 Heure du bug (ligne rouge)", time(12, 0), step=timedelta(minutes=1))
+bug_datetime = datetime.combine(selected_date, bug_time)
 
 if st.button("Charger les données"):
     with st.spinner("Chargement..."):
@@ -90,22 +91,37 @@ if st.button("Charger les données"):
         st.write("🧾 Aperçu des données :")
         st.dataframe(df.head())
 
-        # Choix des index à visualiser
+        # Sélection des index
         st.markdown("### 🎯 Sélection des index à afficher")
         num_cols = df.shape[1] - 1
         selected_indices = st.multiselect(
-             f"Colonnes disponibles (0 à {num_cols - 1})",
-             options=list(range(num_cols)),
-             default=list(range(num_cols))  # ✅ toutes les colonnes par défaut
-            )
+            f"Colonnes disponibles (0 à {num_cols - 1})",
+            options=list(range(num_cols)),
+            default=list(range(min(5, num_cols)))  # max 5 par défaut
+        )
 
-        # Affichage interactif avec Plotly
+        # ✅ Graphique combiné en haut
+        if selected_indices:
+            fig_combined = go.Figure()
+            for idx in selected_indices:
+                fig_combined.add_trace(go.Scatter(
+                    x=df['date'], y=df[idx], mode='lines', name=f"Index {idx}"
+                ))
+            fig_combined.add_vline(x=bug_datetime, line=dict(color="red", dash="dash"), name="Heure du bug")
+            fig_combined.update_layout(
+                title="📊 Graphique combiné",
+                xaxis_title="Heure",
+                yaxis_title="Valeur",
+                legend_title="Index"
+            )
+            st.plotly_chart(fig_combined, use_container_width=True)
+
+        # ✅ Graphiques individuels
         for idx in selected_indices:
             fig = px.line(
-                df,
-                x="date",
-                y=idx,
-                title=f"Évolution dans le temps - Index {idx}",
+                df, x="date", y=idx,
+                title=f"📉 Évolution dans le temps - Index {idx}",
                 labels={"date": "Heure", str(idx): "Valeur"}
             )
+            fig.add_vline(x=bug_datetime, line_dash="dash", line_color="red")
             st.plotly_chart(fig, use_container_width=True)
