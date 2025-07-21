@@ -5,6 +5,8 @@ import json
 from datetime import datetime, time
 import pandas as pd
 import plotly.express as px
+from datetime import timedelta
+
 
 # Configuration GCP
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = r"C:\Users\floch\OneDrive\Documents\GCP_key\streamlit_app\beem-data-warehouse-14a923c674a0.json"
@@ -71,9 +73,10 @@ selected_date = st.date_input("📅 Date à analyser", datetime(2025, 6, 1).date
 
 col1, col2 = st.columns(2)
 with col1:
-    start_time = st.time_input("🕒 Heure de début", time(0, 0))
+    start_time = st.time_input("🕒 Heure de début", time(0, 0), step=timedelta(minutes=5))
 with col2:
-    end_time = st.time_input("🕒 Heure de fin", time(23, 59))
+    end_time = st.time_input("🕒 Heure de fin", time(23, 55), step=timedelta(minutes=5))
+
 
 if st.button("Charger les données"):
     with st.spinner("Chargement..."):
