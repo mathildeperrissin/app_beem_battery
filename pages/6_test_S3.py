@@ -12,7 +12,7 @@ BUCKET_NAME = "beem-backend-battery-warranty"
 
 # --- Chargement des fichiers JSON depuis GCS ---
 @st.cache_data
-def load_json_data(serial_number, date_start, date_end, hour_start, hour_end):
+def load_json_data(serial_number, selected_date, hour_start, hour_end):
     client = storage.Client()
     bucket = client.bucket(BUCKET_NAME)
 
@@ -25,12 +25,12 @@ def load_json_data(serial_number, date_start, date_end, hour_start, hour_end):
     with open(index_file, "r") as f:
         index = json.load(f)
 
-    # Filtrer les fichiers par date et heure
+    # Filtrer les fichiers par jour exact et heure
     filtered_files = []
     for entry in index:
         try:
             dt = datetime.strptime(entry["date"], "%Y-%m-%d %H:%M:%S")
-            if date_start <= dt.date() <= date_end and hour_start <= dt.hour <= hour_end:
+            if dt.date() == selected_date and hour_start <= dt.hour <= hour_end:
                 filtered_files.append((dt, entry["path"]))
         except Exception as e:
             print(f"Erreur parsing date dans {entry['path']} : {e}")
@@ -51,7 +51,6 @@ def load_json_data(serial_number, date_start, date_end, hour_start, hour_end):
 
     return records
 
-
 # --- Création du DataFrame ---
 def records_to_dataframe(records):
     if not records:
@@ -71,11 +70,7 @@ serial_number = st.selectbox("Numéro de série", [
     "021LOLK080001M"
 ])
 
-col1, col2 = st.columns(2)
-with col1:
-    date_start = st.date_input("Date début", datetime(2025, 4, 1).date())
-with col2:
-    date_end = st.date_input("Date fin", datetime(2025, 7, 1).date())
+selected_date = st.date_input("📅 Date à analyser", datetime(2025, 6, 1).date())
 
 st.markdown("### Filtre horaire")
 hour_start, hour_end = st.slider(
@@ -86,11 +81,11 @@ hour_start, hour_end = st.slider(
 
 if st.button("Charger les données"):
     with st.spinner("Chargement..."):
-        records = load_json_data(serial_number, date_start, date_end, hour_start, hour_end)
+        records = load_json_data(serial_number, selected_date, hour_start, hour_end)
         df = records_to_dataframe(records)
 
     if df.empty:
-        st.warning("Aucune donnée trouvée pour cette période et plage horaire.")
+        st.warning("Aucune donnée trouvée pour cette date et plage horaire.")
     else:
         st.success(f"{len(df)} fichiers chargés.")
         st.write("Aperçu des données :")
