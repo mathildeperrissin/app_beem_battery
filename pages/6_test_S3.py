@@ -76,8 +76,14 @@ with col1:
 with col2:
     end_time = st.time_input("🕒 Heure de fin", time(23, 55), step=timedelta(minutes=5))
 
-bug_time = st.time_input("🐞 Heure du bug (ligne rouge)", time(12, 0), step=timedelta(minutes=1))
-bug_datetime = datetime.combine(selected_date, bug_time)
+col3, col4 = st.columns(2)
+with col3:
+    bug_hour = st.selectbox("🕒 Heure du bug", list(range(0, 24)), index=12)
+with col4:
+    bug_minute = st.selectbox("🕐 Minute du bug", list(range(0, 60)), index=0)
+
+bug_datetime = datetime.combine(selected_date, time(bug_hour, bug_minute))
+
 
 if st.button("Charger les données"):
     with st.spinner("Chargement..."):
@@ -92,13 +98,13 @@ if st.button("Charger les données"):
         st.dataframe(df.head())
 
         # Sélection des index
-        st.markdown("### 🎯 Sélection des index à afficher")
-        num_cols = df.shape[1] - 1
+        st.markdown("### 🎯 Sélection des index pour le graphique combiné")
         selected_indices = st.multiselect(
-            f"Colonnes disponibles (0 à {num_cols - 1})",
+           f"Colonnes disponibles (0 à {num_cols - 1})",
             options=list(range(num_cols)),
-            default=list(range(min(5, num_cols)))  # max 5 par défaut
+           default=list(range(min(5, num_cols)))  # jusqu'à 5 par défaut
         )
+
 
         # ✅ Graphique combiné en haut
         if selected_indices:
@@ -117,11 +123,13 @@ if st.button("Charger les données"):
             st.plotly_chart(fig_combined, use_container_width=True)
 
         # ✅ Graphiques individuels
-        for idx in selected_indices:
-            fig = px.line(
-                df, x="date", y=idx,
-                title=f"📉 Évolution dans le temps - Index {idx}",
-                labels={"date": "Heure", str(idx): "Valeur"}
-            )
-            fig.add_vline(x=bug_datetime, line_dash="dash", line_color="red")
-            st.plotly_chart(fig, use_container_width=True)
+        st.markdown("### 📉 Graphiques individuels pour tous les index")
+        for idx in range(num_cols):
+         fig = px.line(
+           df, x="date", y=idx,
+            title=f"Index {idx}",
+          labels={"date": "Heure", str(idx): "Valeur"}
+           )
+      fig.add_vline(x=bug_datetime, line_dash="dash", line_color="red")
+    st.plotly_chart(fig, use_container_width=True)
+
