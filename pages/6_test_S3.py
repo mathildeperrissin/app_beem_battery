@@ -13,6 +13,10 @@ BUCKET_NAME = "beem-backend-battery-warranty"
 # --- Chargement des fichiers JSON depuis GCS ---
 @st.cache_data
 def load_json_data(serial_number, date_start, date_end):
+    from datetime import datetime
+    from google.cloud import storage
+    import json
+
     client = storage.Client()
     bucket = client.bucket(BUCKET_NAME)
     blobs = bucket.list_blobs(prefix=f"{serial_number}/")
@@ -20,21 +24,32 @@ def load_json_data(serial_number, date_start, date_end):
     records = []
 
     for blob in blobs:
-        try:
-            filename = blob.name.split('/')[-1]
-            file_date_str = filename.split('_')[1].split('T')[0]
-            file_date = datetime.strptime(file_date_str, "%Y-%m-%d").date()
+        filename = blob.name.split('/')[-1]
 
-            if date_start <= file_date <= date_end:
+        try:
+            # Exemple : 000000535_2025-06-23T23-59-53-112Z.json
+            # Étape 1 : extraire la partie date brute depuis le nom
+            raw_datetime = filename.split('_')[1].split('.')[0]  # "2025-06-23T23-59-53-112Z"
+
+            # Étape 2 : convertir en objet datetime
+            clean_datetime_str = raw_datetime.replace('T', ' ')[:19]  # "2025-06-23 23:59:53"
+            blob_date = datetime.strptime(clean_datetime_str, "%Y-%m-%d %H:%M:%S")
+
+            # Étape 3 : comparaison par date uniquement
+            if date_start <= blob_date.date() <= date_end:
                 content = blob.download_as_text()
                 parsed = json.loads(content)
-                date = datetime.strptime(parsed["date"], "%Y-%m-%d %H:%M:%S")
-                records.append({"date": date, "values": parsed["data"]})
+                records.append({
+                    "date": datetime.strptime(parsed["date"], "%Y-%m-%d %H:%M:%S"),
+                    "values": parsed["data"]
+                })
+
         except Exception as e:
-            print(f"Erreur dans le fichier {blob.name} : {e}")
+            print(f"Erreur avec le fichier {filename} : {e}")
             continue
 
     return records
+
 
 # --- Création du DataFrame ---
 def records_to_dataframe(records):
