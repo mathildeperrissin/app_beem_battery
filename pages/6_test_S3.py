@@ -25,30 +25,29 @@ def load_json_data(serial_number, date_start, date_end):
 
     for blob in blobs:
         filename = blob.name.split('/')[-1]
+        print(f"Fichier détecté : {filename}")
 
         try:
-            # Exemple : 000000535_2025-06-23T23-59-53-112Z.json
-            # Étape 1 : extraire la partie date brute depuis le nom
             raw_datetime = filename.split('_')[1].split('.')[0]  # "2025-06-23T23-59-53-112Z"
-
-            # Étape 2 : convertir en objet datetime
             clean_datetime_str = raw_datetime.replace('T', ' ')[:19]  # "2025-06-23 23:59:53"
             blob_date = datetime.strptime(clean_datetime_str, "%Y-%m-%d %H:%M:%S")
 
-            # Étape 3 : comparaison par date uniquement
+            print(f"→ Date extraite : {blob_date} (filtrée entre {date_start} et {date_end})")
+
             if date_start <= blob_date.date() <= date_end:
                 content = blob.download_as_text()
                 parsed = json.loads(content)
+                print(f"✔ Ajout du fichier {filename}")
                 records.append({
                     "date": datetime.strptime(parsed["date"], "%Y-%m-%d %H:%M:%S"),
                     "values": parsed["data"]
                 })
+            else:
+                print(f"⏭ Ignoré (hors plage)")
 
         except Exception as e:
-            print(f"Erreur avec le fichier {filename} : {e}")
-            continue
+            print(f"❌ Erreur fichier {filename} : {e}")
 
-    return records
 
 
 # --- Création du DataFrame ---
