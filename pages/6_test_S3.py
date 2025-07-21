@@ -1,4 +1,4 @@
-import streamlit as st
+import streamlit as st 
 from google.cloud import storage
 import os
 import json
@@ -70,19 +70,30 @@ serial_number = st.selectbox("Numéro de série", [
 
 selected_date = st.date_input("📅 Date à analyser", datetime(2025, 6, 1).date())
 
-col1, col2 = st.columns(2)
-with col1:
-    start_time = st.time_input("🕒 Heure de début", time(0, 0), step=timedelta(minutes=5))
-with col2:
-    end_time = st.time_input("🕒 Heure de fin", time(23, 55), step=timedelta(minutes=5))
-
-col3, col4 = st.columns(2)
-with col3:
+# Heure du bug
+col_bug1, col_bug2 = st.columns(2)
+with col_bug1:
     bug_hour = st.selectbox("🕒 Heure du bug", list(range(0, 24)), index=12)
-with col4:
+with col_bug2:
     bug_minute = st.selectbox("🕐 Minute du bug", list(range(0, 60)), index=0)
 
 bug_datetime = datetime.combine(selected_date, time(bug_hour, bug_minute))
+
+# Plage automatique ou manuelle
+auto_range = st.checkbox("🧠 Plage automatique autour du bug (−15min / +5min)", value=True)
+
+if auto_range:
+    start_dt = bug_datetime - timedelta(minutes=15)
+    end_dt = bug_datetime + timedelta(minutes=5)
+    start_time = start_dt.time()
+    end_time = end_dt.time()
+    st.info(f"⏱ Analyse automatique de {start_time.strftime('%H:%M')} à {end_time.strftime('%H:%M')}")
+else:
+    col1, col2 = st.columns(2)
+    with col1:
+        start_time = st.time_input("🕒 Heure de début", time(0, 0), step=timedelta(minutes=5))
+    with col2:
+        end_time = st.time_input("🕒 Heure de fin", time(23, 55), step=timedelta(minutes=5))
 
 if st.button("Charger les données"):
     with st.spinner("Chargement..."):
