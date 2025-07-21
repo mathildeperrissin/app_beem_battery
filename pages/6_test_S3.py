@@ -12,11 +12,7 @@ BUCKET_NAME = "beem-backend-battery-warranty"
 
 # --- Chargement des fichiers JSON depuis GCS ---
 @st.cache_data
-def load_json_data(serial_number, date_start, date_end):
-    from datetime import datetime
-    from google.cloud import storage
-    import json
-
+def load_json_data(serial_number, date_start, date_end, hour_start, hour_end):
     client = storage.Client()
     bucket = client.bucket(BUCKET_NAME)
     blobs = bucket.list_blobs(prefix=f"{serial_number}/")
@@ -28,25 +24,25 @@ def load_json_data(serial_number, date_start, date_end):
         print(f"📂 Fichier trouvé : {filename}")
 
         try:
-            # On ignore le nom de fichier et on lit directement le contenu
             content = blob.download_as_text()
             parsed = json.loads(content)
 
-            # On parse le champ "date" du fichier JSON
             parsed_date = datetime.strptime(parsed["date"], "%Y-%m-%d %H:%M:%S")
-            print(f"🟢 Date extraite du contenu : {parsed_date}")
+            print(f"🟢 Date extraite : {parsed_date}")
 
-            # Test sans filtre pour identifier si ça vient du parsing
-            records.append({
-                "date": parsed_date,
-                "values": parsed["data"]
-            })
+            # ✅ Filtre sur date ET heure
+            if date_start <= parsed_date.date() <= date_end and hour_start <= parsed_date.hour <= hour_end:
+                records.append({
+                    "date": parsed_date,
+                    "values": parsed["data"]
+                })
+            else:
+                print(f"⏭ Fichier ignoré : hors plage")
 
         except Exception as e:
             print(f"❌ Erreur fichier {filename} : {e}")
 
     return records
-
 
 # --- Création du DataFrame ---
 def records_to_dataframe(records):
@@ -54,7 +50,6 @@ def records_to_dataframe(records):
         return pd.DataFrame()
     
     df = pd.DataFrame(records)
-    # on transforme les listes de "values" en colonnes
     values_expanded = pd.DataFrame(df['values'].to_list())
     df = pd.concat([df['date'], values_expanded], axis=1)
     return df
@@ -63,11 +58,10 @@ def records_to_dataframe(records):
 st.title("Suivi de données batterie (GCS)")
 
 serial_number = st.selectbox("Numéro de série", [
-    "021LOLF080004M",  # ✅ Correct
+    "021LOLF080004M",
     "021LOLF080008M",
     "021LOLK080001M"
 ])
-
 
 col1, col2 = st.columns(2)
 with col1:
@@ -75,13 +69,20 @@ with col1:
 with col2:
     date_end = st.date_input("Date fin", datetime(2025, 7, 1).date())
 
+st.markdown("### Filtre horaire")
+hour_start, hour_end = st.slider(
+    "Heure de la journée (intervalle)",
+    min_value=0, max_value=23,
+    value=(0, 23)
+)
+
 if st.button("Charger les données"):
     with st.spinner("Chargement..."):
-        records = load_json_data(serial_number, date_start, date_end)
+        records = load_json_data(serial_number, date_start, date_end, hour_start, hour_end)
         df = records_to_dataframe(records)
 
     if df.empty:
-        st.warning("Aucune donnée trouvée pour cette période.")
+        st.warning("Aucune donnée trouvée pour cette période et plage horaire.")
     else:
         st.success(f"{len(df)} fichiers chargés.")
         st.write("Aperçu des données :")
