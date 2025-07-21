@@ -8,7 +8,7 @@ BUCKET_NAME = "beem-backend-battery-warranty"
 client = storage.Client()
 bucket = client.bucket(BUCKET_NAME)
 
-serial_number = "021LOLF080004M/"
+serial_number = "021LOLF080004M"
 
 st.title("🔍 Test de listing GCS")
 st.write(f"Fichiers dans `{serial_number}/` :")
