@@ -2,9 +2,9 @@ import streamlit as st
 from google.cloud import storage
 import os
 import json
-from datetime import datetime
+from datetime import datetime, time
 import pandas as pd
-import matplotlib.pyplot as plt
+import plotly.express as px
 
 # Configuration GCP
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = r"C:\Users\floch\OneDrive\Documents\GCP_key\streamlit_app\beem-data-warehouse-14a923c674a0.json"
@@ -12,11 +12,10 @@ BUCKET_NAME = "beem-backend-battery-warranty"
 
 # --- Chargement des fichiers JSON depuis GCS ---
 @st.cache_data
-def load_json_data(serial_number, selected_date, hour_start, hour_end):
+def load_json_data(serial_number, selected_date, start_time, end_time):
     client = storage.Client()
     bucket = client.bucket(BUCKET_NAME)
 
-    # Charger l’index depuis le fichier local
     index_file = f"{serial_number}_index.json"
     if not os.path.exists(index_file):
         st.error(f"Index introuvable : {index_file}")
@@ -25,17 +24,15 @@ def load_json_data(serial_number, selected_date, hour_start, hour_end):
     with open(index_file, "r") as f:
         index = json.load(f)
 
-    # Filtrer les fichiers par jour exact et heure
     filtered_files = []
     for entry in index:
         try:
             dt = datetime.strptime(entry["date"], "%Y-%m-%d %H:%M:%S")
-            if dt.date() == selected_date and hour_start <= dt.hour <= hour_end:
+            if dt.date() == selected_date and start_time <= dt.time() <= end_time:
                 filtered_files.append((dt, entry["path"]))
         except Exception as e:
             print(f"Erreur parsing date dans {entry['path']} : {e}")
 
-    # Télécharger les fichiers sélectionnés
     records = []
     for dt, path in filtered_files:
         try:
@@ -62,7 +59,7 @@ def records_to_dataframe(records):
     return df
 
 # --- Interface utilisateur ---
-st.title("Suivi de données batterie (GCS)")
+st.title("📈 Suivi de données batterie (GCS)")
 
 serial_number = st.selectbox("Numéro de série", [
     "021LOLF080004M",
@@ -72,27 +69,26 @@ serial_number = st.selectbox("Numéro de série", [
 
 selected_date = st.date_input("📅 Date à analyser", datetime(2025, 6, 1).date())
 
-st.markdown("### Filtre horaire")
-hour_start, hour_end = st.slider(
-    "Heure de la journée (intervalle)",
-    min_value=0, max_value=23,
-    value=(0, 23)
-)
+col1, col2 = st.columns(2)
+with col1:
+    start_time = st.time_input("🕒 Heure de début", time(0, 0))
+with col2:
+    end_time = st.time_input("🕒 Heure de fin", time(23, 59))
 
 if st.button("Charger les données"):
     with st.spinner("Chargement..."):
-        records = load_json_data(serial_number, selected_date, hour_start, hour_end)
+        records = load_json_data(serial_number, selected_date, start_time, end_time)
         df = records_to_dataframe(records)
 
     if df.empty:
-        st.warning("Aucune donnée trouvée pour cette date et plage horaire.")
+        st.warning("Aucune donnée trouvée pour cette date et cette plage horaire.")
     else:
         st.success(f"{len(df)} fichiers chargés.")
-        st.write("Aperçu des données :")
+        st.write("🧾 Aperçu des données :")
         st.dataframe(df.head())
 
         # Choix des index à visualiser
-        st.markdown("### Sélection des index à visualiser")
+        st.markdown("### 🎯 Sélection des index à afficher")
         num_cols = df.shape[1] - 1
         selected_indices = st.multiselect(
             f"Colonnes disponibles (0 à {num_cols - 1})",
@@ -100,12 +96,13 @@ if st.button("Charger les données"):
             default=[0, 1]
         )
 
-        # Affichage des courbes
+        # Affichage interactif avec Plotly
         for idx in selected_indices:
-            plt.figure()
-            plt.plot(df['date'], df[idx])
-            plt.title(f"Évolution dans le temps - Index {idx}")
-            plt.xlabel("Date")
-            plt.ylabel("Valeur")
-            plt.grid(True)
-            st.pyplot(plt)
+            fig = px.line(
+                df,
+                x="date",
+                y=idx,
+                title=f"Évolution dans le temps - Index {idx}",
+                labels={"date": "Heure", str(idx): "Valeur"}
+            )
+            st.plotly_chart(fig, use_container_width=True)
