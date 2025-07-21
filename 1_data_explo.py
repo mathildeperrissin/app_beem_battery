@@ -298,7 +298,7 @@ st.plotly_chart(fig, use_container_width=True)
 
 # ========== 📍 Graphique séparé des logs sur la même échelle de temps ==========
 
-st.subheader("📍 Logs 'fault' ou 'warning' sur la période sélectionnée")
+st.subheader("📍 Fault ou warning sur la période")
 
 
 @st.cache_data
@@ -389,7 +389,7 @@ else:
 
 # ========== 🔍 Valeurs proches d'une date/heure sélectionnée ==========
 
-st.subheader("📍 Obtenir les valeurs les plus proches d'un moment donné")
+st.subheader("📍 Valeurs des mesures les plus proches d'un moment donné")
 
 col1, col2 = st.columns(2)
 with col1:
@@ -440,7 +440,7 @@ else:
 
 # ========== 🪝 Logs Fault/Warning avec filtres ==========
 
-st.subheader("🪝 Logs de type 'fault' ou 'warning'")
+st.subheader("🪝 Logs ")
 
 @st.cache_data
 def load_logs_all(device_id):
