@@ -209,10 +209,11 @@ if st.button("Charger les données"):
         # ✅ Graphique combiné
         if selected_indices:
             fig_combined = go.Figure()
-            for idx in selected_indices:
+            for name in selected_names:
                 fig_combined.add_trace(go.Scatter(
-                    x=df['date'], y=df[idx], mode='lines', name=f"Index {idx}"
+                    x=df['date'], y=df[name], mode='lines', name=name
                 ))
+
             fig_combined.add_vline(x=bug_datetime, line=dict(color="red", dash="dash"), name="Heure du bug")
             fig_combined.update_layout(
                 title="📊 Graphique combiné",
@@ -224,11 +225,12 @@ if st.button("Charger les données"):
 
         # ✅ Graphiques individuels pour tous les index
         st.markdown("### 📉 Graphiques individuels pour tous les index")
-        for idx in range(num_cols):
+        for name in df.columns[1:]:
             fig = px.line(
-                df, x="date", y=idx,
-                title=f"Index {idx}",
-                labels={"date": "Heure", str(idx): "Valeur"}
+                df, x="date", y=name,
+                title=name,
+                labels={"date": "Heure", name: "Valeur"}
             )
+
             fig.add_vline(x=bug_datetime, line_dash="dash", line_color="red")
             st.plotly_chart(fig, use_container_width=True)
