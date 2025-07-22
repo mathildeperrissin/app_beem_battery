@@ -132,8 +132,8 @@ def records_to_dataframe(records):
         "Reserved", "Reserved", "Reserved", "Reserved"
     ]
 
-    # Renommer les colonnes si 349 colonnes de données
-    if df.shape[1] - 1 == 349:
+    # Renommer les colonnes si 350 colonnes de données
+    if df.shape[1] - 1 == 350:
         seen = {}
         new_names = []
         for name in custom_index_names_raw:
