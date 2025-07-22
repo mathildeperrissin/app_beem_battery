@@ -90,16 +90,27 @@ col_map1, col_map2 = st.columns(2)
 with col_map1:
     st.markdown("**Ampace V1**")
     fig_map_v1 = px.scatter_mapbox(
-        df_v1,
-        lat="latitude",
-        lon="longitude",
-        color="clean_mode",
-        hover_name="lastname",
-        size="point_size",
-        hover_data=["id", "hardware_version", "nb_cycles"],
-        zoom=5,
-        height=600
-    )
+    df_v1,
+    lat="latitude",
+    lon="longitude",
+    color="clean_mode",
+    hover_name="serial_number",
+    size="point_size",
+    hover_data={
+        "id": True,
+        "hardware_version": True,
+        "working_mode_code": True,
+        "nb_modules": True,
+        "nb_cycles": True,
+        "global_soh": True,
+        "latitude": False,
+        "longitude": False,
+        "clean_mode": False,
+        "point_size": False
+    },
+    zoom=5,
+    height=600
+)
     fig_map_v1.update_layout(mapbox_style="open-street-map")
     fig_map_v1.update_layout(margin={"r":0,"t":0,"l":0,"b":0})
     st.plotly_chart(fig_map_v1, use_container_width=True)
@@ -107,16 +118,28 @@ with col_map1:
 with col_map2:
     st.markdown("**Ampace V2**")
     fig_map_v2 = px.scatter_mapbox(
-        df_v2,
-        lat="latitude",
-        lon="longitude",
-        color="clean_mode",
-        hover_name="lastname",
-        size="point_size",
-        hover_data=["id", "hardware_version", "nb_cycles"],
-        zoom=5,
-        height=600
-    )
+    df_v2,
+    lat="latitude",
+    lon="longitude",
+    color="clean_mode",
+    hover_name="serial_number",
+    size="point_size",
+    hover_data={
+        "id": True,
+        "hardware_version": True,
+        "working_mode_code": True,
+        "nb_modules": True,
+        "nb_cycles": True,
+        "global_soh": True,
+        "latitude": False,
+        "longitude": False,
+        "clean_mode": False,
+        "point_size": False
+    },
+    zoom=5,
+    height=600
+)
+
     fig_map_v2.update_layout(mapbox_style="open-street-map")
     fig_map_v2.update_layout(margin={"r":0,"t":0,"l":0,"b":0})
     st.plotly_chart(fig_map_v2, use_container_width=True)
