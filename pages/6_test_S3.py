@@ -64,6 +64,11 @@ def records_to_dataframe(records):
     values_expanded = pd.DataFrame(df['values'].to_list())
     df = pd.concat([df['date'], values_expanded], axis=1)
 
+    # Diagnostic : afficher le nombre de colonnes
+    st.write("🧪 Nombre total de colonnes :", df.shape[1])  # ex: 351 attendu
+    st.write("🧪 Nombre d’index (sans 'date') :", df.shape[1] - 1)
+    st.write("🧪 Exemple de première ligne :", df.iloc[0])
+
     # Liste des 349 noms d’index attendus (sans les numéros)
     custom_index_names_raw = [
         "DevProtocol", "Master_Version", "YearMonth", "DateTime", "MinutesSeconds", "Battery_Status",
@@ -130,10 +135,11 @@ def records_to_dataframe(records):
         "Meter2_ActivePower_L", "Meter2_PowerFactor_H", "Meter2_PowerFactor_L", "Meter2_Frequency_H",
         "Meter2_Frequency_L", "Reserved", "Reserved", "Reserved", "Reserved", "Reserved", "Reserved",
         "Reserved", "Reserved", "Reserved", "Reserved"
+    
     ]
 
-    # Renommer les colonnes si 350 colonnes de données
-    if df.shape[1] - 1 == 350:
+    # Renommer si on a bien 350 colonnes d'index (hors date)
+    if len(df.columns) == 351:
         seen = {}
         new_names = []
         for name in custom_index_names_raw:
@@ -143,8 +149,13 @@ def records_to_dataframe(records):
             seen[base] = count + 1
             new_names.append(final)
         df.columns = ["date"] + new_names
+        st.success("✅ Les noms d’index personnalisés ont été appliqués.")
+    else:
+        st.warning(f"⚠️ Les noms n’ont pas été appliqués. Colonnes trouvées : {len(df.columns) - 1} (attendu : 350)")
 
     return df
+
+
 
 
 # --- Interface utilisateur ---
