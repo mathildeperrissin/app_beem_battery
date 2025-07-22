@@ -207,7 +207,7 @@ if st.button("Charger les données"):
         )
 
         # ✅ Graphique combiné
-        if selected_indices:
+        if selected_names:
             fig_combined = go.Figure()
             for name in selected_names:
                 fig_combined.add_trace(go.Scatter(
