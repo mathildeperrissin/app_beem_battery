@@ -63,7 +63,89 @@ def records_to_dataframe(records):
     df = pd.DataFrame(records)
     values_expanded = pd.DataFrame(df['values'].to_list())
     df = pd.concat([df['date'], values_expanded], axis=1)
+
+    # Liste des 349 noms d’index attendus (sans les numéros)
+    custom_index_names_raw = [
+        "DevProtocol", "Master_Version", "YearMonth", "DateTime", "MinutesSeconds", "Battery_Status",
+        "Battery_Volt", "Battery_Curr", "Input_Frequency", "Input_Volt", "Input_Appa.P A", "Input_Acti.P",
+        "Input_ReActi.P", "Inverter_Volt", "Inverter_Curr", "Inverter_Acti.P", "Drm0Sts", "WetPortSta",
+        "PV_Power", "Bus_Volt", "SysDailyGenerationKwh_L", "SysDailyGenerationKwh_H",
+        "SysTotalGenerationKwh_L", "SysTotalGenerationKwh_H", "Load_Volt", "Load_Curr", "Load_Acti.P",
+        "Load_Appa.P", "Load_Percentage", "EnergyFlow_Line 1-8", "EnergyFlow_Line 9-16", "MonitorVersion",
+        "Reserved", "SOC", "BUS _Volt", "BUS_Curr", "Reserved", "Reserved", "CT_PowerByDC", "BUS_Power",
+        "SystemError", "BatteryDailyDischargeKwh_L", "BatteryDailyDischargeKwh_H",
+        "BatteryTotalDischargeKwh_L", "BatteryTotalDischargeKwh_H", "DC-AC_StatusMode", "DC-AC_ERR_H",
+        "DC-AC_ERR_L", "Reserved", "Reserved", "AC_Version", "AC_Temp1", "AC_Temp2", "AC_InternalVer",
+        "Grid_VoltAVG(V)", "Grid_CurrAVG(A)", "Grid_Frequency(Hz)", "Grid_ActiPw(W)", "Grid_Pw(W)",
+        "PowerFactor", "Inv_VoltAVG(V)", "Inv_CurrAVG(A)", "Inv_Pw(W)", "Load_Volt(V)", "Load_Pw(W)",
+        "PowerSetting", "AC_CtrlPow", "DC-AC_STATE", "DC-AC_ERR_H", "DC-AC_ERR_L", "DC-AC_WARN_H",
+        "DC-AC_WARN_L", "Reserved", "Reserved", "UndercurrentStatus", "FullChargeStatus", "AC_User9",
+        "Inv_Ileak", "BatteryPower", "MonitorBoard", "DC_FwVersion", "CT1_Power", "AC_User19", "PV1_Power",
+        "PV2_Power", "PV3_Power", "WindTurbine_Pw", "PV1_Volt", "PV1_Curr", "PV2_Volt", "PV2_Curr",
+        "PV3_Volt", "PV3_Curr", "WindTurbine_Volt", "WindTurbine_Curr", "Reserved",
+        "BMS_ChargeLimitVolt", "BMS_MaxChargeCurr", "BMS_MaxDischargeCurr", "BMS_DischargeCutoffVolt",
+        "BMS_Volt", "BMS_Curr", "BMS_Temp", "BMS_SOC", "BMS_SOH", "BMS_Status", "BMS_ERR_H", "BMS_ERR_L",
+        "BMS_WARN_H", "BMS_WARN_L", "BMS_Version", "BMS_Capacity", "BatteriesCount", "CellsCount",
+        "RACK_Volt", "RACK_Curr", "RACK_SOC", "RACK_SOH", "RACK_MaxCellVolt", "RACK_MaxCellVoltNum",
+        "RACK_MinCellVolt", "RACK_MinCellVoltNum", "RACK_MaxCellTemp", "RACK_MaxCellTempNum",
+        "RACK_MinCellTemp", "RACK_MinCellTempNum", "RACK_HwVersion", "RACK_FwVersion", "RACK_ERR_H",
+        "RACK_WARN", "RACK_Sta", "RACK_ERR_L", "RACK_SN_High", "RACK_SN_Mid", "RACK_SN_Low", "RACK_SN_H",
+        "RACK_SN_L", "RACK_CycleCount", "RACK_RemainCapacity", "RACK_FullChargeCapacity", "RACK_PlugStatus",
+        "Reserved", "Reserved", "Reserved", "Reserved", "Reserved", "Reserved", "Reserved", "Reserved",
+        "Reserved", "Reserved", "Reserved", "Reserved", "Reserved", "Reserved", "Reserved", "Reserved",
+        "Reserved", "Reserved", "Reserved", "Reserved", "DSP1_REG38", "DSP1_REG39", "DSP1_REG40",
+        "DSP1_REG41", "DSP1_REG42", "DSP1_REG43", "DSP1_REG44", "DSP1_REG45", "DSP1_REG46", "DSP1_REG47",
+        "DSP1_REG48", "DSP1_REG49", "DSP1_REG50", "DSP1_REG51", "DSP1_REG52", "DSP1_REG53", "DSP1_REG54",
+        "DSP1_REG55", "DSP1_REG56", "DSP1_REG57", "DSP1_REG58", "DSP1_REG59", "DSP2_REG00", "DSP2_REG01",
+        "DSP2_REG02", "DSP2_REG03", "DSP2_REG04", "DSP2_REG05", "DSP2_REG06", "DSP2_REG07", "DSP2_REG08",
+        "DSP2_REG09", "DSP2_REG10", "DSP2_REG11", "DSP2_REG12", "DSP2_REG13", "DSP2_REG14", "DSP2_REG15",
+        "DSP2_REG16", "DSP2_REG17", "DSP2_REG18", "DSP2_REG19", "DSP2_REG20", "DSP2_REG21", "DSP2_REG22",
+        "DSP2_REG23", "DSP2_REG24", "DSP2_REG25", "DSP2_REG26", "DSP2_REG27", "BMU1_MoudleVolt",
+        "BMU1_CellNum", "BMU1_MaxCellVolt", "BMU1_MinCellVolt", "BMU1_CellTempNum", "BMU1_HwVersion",
+        "BMU1_FwVersion", "BMU1_SN_H", "BMU1_SN_L", "BMU1_BalancingTarget", "BMU1_Reserved",
+        "BMU2_MoudleVolt", "BMU2_CellNum", "BMU2_MaxCellVolt", "BMU2_MinCellVolt", "BMU2_CellTempNum",
+        "BMU2_HwVersion", "BMU2_FwVersion", "BMU2_SN_H", "BMU2_SN_L", "BMU2_BalancingTarget",
+        "BMU2_Reserved", "BMU3_MoudleVolt", "BMU3_CellNum", "BMU3_MaxCellVolt", "BMU3_MinCellVolt",
+        "BMU3_CellTempNum", "BMU3_HwVersion", "BMU3_FwVersion", "BMU3_SN_H", "BMU3_SN_L",
+        "BMU3_BalancingTarget", "BMU3_Reserved", "BMU4_MoudleVolt", "BMU4_CellNum", "BMU4_MaxCellVolt",
+        "BMU4_MinCellVolt", "BMU4_CellTempNum", "BMU4_HwVersion", "BMU4_FwVersion", "BMU4_SN_H",
+        "BMU4_SN_L", "BMU4_BalancingTarget", "BMU4_Reserved", "BMU5_MoudleVolt", "BMU5_CellNum",
+        "BMU5_MaxCellVolt", "BMU5_MinCellVolt", "BMU5_CellTempNum", "BMU5_HwVersion", "BMU5_FwVersion",
+        "BMU5_SN_H", "BMU5_SN_L", "BMU5_BalancingTarget", "BMU5_Reserved", "BMU6_MoudleVolt",
+        "BMU6_CellNum", "BMU6_MaxCellVolt", "BMU6_MinCellVolt", "BMU6_CellTempNum", "BMU6_HwVersion",
+        "BMU6_FwVersion", "BMU6_SN_H", "BMU6_SN_L", "BMU6_BalancingTarget", "BMU6_Reserved",
+        "BMU7_MoudleVolt", "BMU7_CellNum", "BMU7_MaxCellVolt", "BMU7_MinCellVolt", "BMU7_CellTempNum",
+        "BMU7_HwVersion", "BMU7_FwVersion", "BMU7_SN_H", "BMU7_SN_L", "BMU7_BalancingTarget",
+        "BMU7_Reserved", "BMU8_MoudleVolt", "BMU8_CellNum", "BMU8_MaxCellVolt", "BMU8_MinCellVolt",
+        "BMU8_CellTempNum", "BMU8_HwVersion", "BMU8_FwVersion", "BMU8_SN_H", "BMU8_SN_L",
+        "BMU8_BalancingTarget", "BMU8_Reserved", "Reserved", "Reserved", "Reserved", "Reserved", "Reserved",
+        "Reserved", "Reserved", "Reserved", "Reserved", "Reserved", "Reserved", "Reserved", "Reserved",
+        "Reserved", "Reserved", "Reserved", "Reserved", "Reserved", "Reserved", "Meter1_CombineKwH_H",
+        "Meter1_CombineKwH_L", "Meter1_PositiveKwH_H", "Meter1_PositiveKwH_L", "Meter1_NagativeKwH_H",
+        "Meter1_NagativeKwH_L", "Meter1_Volt_H", "Meter1_Volt_L", "Meter1_Curr_H", "Meter1_Curr_L",
+        "Meter1_ActivePower_H", "Meter1_ActivePower_L", "Meter1_PowerFactor_H", "Meter1_PowerFactor_L",
+        "Meter1_Frequency_H", "Meter1_Frequency_L", "Meter2_CombineKwH_H", "Meter2_CombineKwH_L",
+        "Meter2_PositiveKwH_H", "Meter2_PositiveKwH_L", "Meter2_NagativeKwH_H", "Meter2_NagativeKwH_L",
+        "Meter2_Volt_H", "Meter2_Volt_L", "Meter2_Curr_H", "Meter2_Curr_L", "Meter2_ActivePower_H",
+        "Meter2_ActivePower_L", "Meter2_PowerFactor_H", "Meter2_PowerFactor_L", "Meter2_Frequency_H",
+        "Meter2_Frequency_L", "Reserved", "Reserved", "Reserved", "Reserved", "Reserved", "Reserved",
+        "Reserved", "Reserved", "Reserved", "Reserved"
+    ]
+
+    # Renommer les colonnes si 349 colonnes de données
+    if df.shape[1] - 1 == 349:
+        seen = {}
+        new_names = []
+        for name in custom_index_names_raw:
+            base = name.strip()
+            count = seen.get(base, 0)
+            final = base if count == 0 else f"{base}_{count}"
+            seen[base] = count + 1
+            new_names.append(final)
+        df.columns = ["date"] + new_names
+
     return df
+
 
 # --- Interface utilisateur ---
 st.title("📈 Suivi de données batterie (GCS)")
@@ -117,10 +199,11 @@ if st.button("Charger les données"):
 
         # Sélection des index pour le graphique combiné
         st.markdown("### 🎯 Sélection des index pour le graphique combiné")
-        selected_indices = st.multiselect(
-            f"Colonnes disponibles (0 à {num_cols - 1})",
-            options=list(range(num_cols)),
-            default=list(range(min(5, num_cols)))
+        index_names = df.columns[1:].tolist()  # ignorer la colonne "date"
+        selected_names = st.multiselect(
+            "Colonnes disponibles",
+            options=index_names,
+            default=index_names[:min(5, len(index_names))]
         )
 
         # ✅ Graphique combiné
