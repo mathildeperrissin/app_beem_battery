@@ -49,35 +49,25 @@ with col_b:
 def load_info():
     client = bigquery.Client()
     query = """
-        WITH device_user_data AS (
-            SELECT * 
-            FROM `beem-data-warehouse.airbyte_postgresql.battery_device` AS d
-            LEFT JOIN `beem-data-warehouse.airbyte_postgresql.battery_live_data` AS ld ON ld.battery_id = d.id
-            LEFT JOIN `beem-data-warehouse.airbyte_postgresql.house_user` AS hu ON d.house_id = hu.house_id 
-            LEFT JOIN `beem-data-warehouse.airbyte_postgresql.user` AS u ON hu.user_id = u.id
-            LEFT JOIN `beem-data-warehouse.airbyte_postgresql.house` AS h ON h.id = hu.house_id
-            WHERE d.deleted_at IS NULL
-              AND d.replaced_by_id IS NULL
-              AND d.warranty_status = 'activated'
-              AND d.serial_number NOT IN ('021LOLL190154M','021LOLF080008M')
-        ),
-        serial_counts AS (
-            SELECT serial_number, COUNT(*) AS nb
-            FROM device_user_data
-            GROUP BY serial_number
-        ),
-        final AS (
-            SELECT dud.*
-            FROM device_user_data dud
-            JOIN serial_counts sc ON dud.serial_number = sc.serial_number
-            WHERE sc.nb = 1
-               OR (
-                   sc.nb > 1
-                   AND dud.email NOT LIKE '%@beemenergy.com'
-                   AND dud.email NOT LIKE '%@beemenergy.fr'
-               )
-        )
-        SELECT * FROM final;
+        SELECT 
+    d.id,
+    d.serial_number,
+    d.hardware_version,
+    ld.working_mode_code,
+    ld.nb_modules,
+    ld.nb_cycles,
+    ld.global_soh,
+    h.latitude,
+    h.longitude
+FROM `beem-data-warehouse.airbyte_postgresql.battery_device` AS d
+LEFT JOIN `beem-data-warehouse.airbyte_postgresql.battery_live_data` AS ld 
+    ON ld.battery_id = d.id
+LEFT JOIN `beem-data-warehouse.airbyte_postgresql.house` AS h 
+    ON d.house_id = h.id
+WHERE d.deleted_at IS NULL
+  AND d.replaced_by_id IS NULL
+  AND d.warranty_status = 'activated'
+  AND d.serial_number NOT IN ('021LOLL190154M', '021LOLF080008M')
     """
     return client.query(query).to_dataframe()
 
