@@ -159,6 +159,31 @@ with col2:
     st.metric("Ampace V2", nb_v2)
 
 # ============================
+# ⚙️ Modes de fonctionnement par version
+# ============================
+st.subheader("⚙️ Modes de fonctionnement par version")
+
+df_v1 = df[df["hardware_version"] == "ampace_v1"]
+df_v2 = df[df["hardware_version"] == "ampace_v2"]
+
+col5, col6 = st.columns(2)
+with col5:
+    fig_mode_v1 = px.pie(
+        names=df_v1["clean_mode"].value_counts().index,
+        values=df_v1["clean_mode"].value_counts().values,
+        title="Modes de fonctionnement (Ampace V1)",
+    )
+    st.plotly_chart(fig_mode_v1, use_container_width=True)
+
+with col6:
+    fig_mode_v2 = px.pie(
+        names=df_v2["clean_mode"].value_counts().index,
+        values=df_v2["clean_mode"].value_counts().values,
+        title="Modes de fonctionnement (Ampace V2)",
+    )
+    st.plotly_chart(fig_mode_v2, use_container_width=True)
+    
+# ============================
 # 🧩 État de santé et cycles
 # ============================
 st.subheader("🧩 État de santé et cycles")
@@ -237,27 +262,4 @@ with col8:
     )
     st.plotly_chart(fig_control_mode, use_container_width=True)
 
-# ============================
-# ⚙️ Modes de fonctionnement par version
-# ============================
-st.subheader("⚙️ Modes de fonctionnement par version")
 
-df_v1 = df[df["hardware_version"] == "ampace_v1"]
-df_v2 = df[df["hardware_version"] == "ampace_v2"]
-
-col5, col6 = st.columns(2)
-with col5:
-    fig_mode_v1 = px.pie(
-        names=df_v1["clean_mode"].value_counts().index,
-        values=df_v1["clean_mode"].value_counts().values,
-        title="Modes de fonctionnement (Ampace V1)",
-    )
-    st.plotly_chart(fig_mode_v1, use_container_width=True)
-
-with col6:
-    fig_mode_v2 = px.pie(
-        names=df_v2["clean_mode"].value_counts().index,
-        values=df_v2["clean_mode"].value_counts().values,
-        title="Modes de fonctionnement (Ampace V2)",
-    )
-    st.plotly_chart(fig_mode_v2, use_container_width=True)
