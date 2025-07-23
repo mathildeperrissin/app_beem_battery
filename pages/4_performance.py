@@ -64,27 +64,27 @@ def load_daily_energy_data():
     WITH
       conso AS (
         SELECT device_id, DATE(date) AS date, SUM(value) AS conso
-        FROM `mongo_beem.battery_active_energy_measure`
+        FROM `mongodb.battery_active_energy_measure`
         GROUP BY device_id, date
       ),
       injection AS (
         SELECT device_id, DATE(date) AS date, SUM(value) AS injection
-        FROM `mongo_beem.battery_active_returned_energy_meter_measure`
+        FROM `mongodb.battery_active_returned_energy_meter_measure`
         GROUP BY device_id, date
       ),
       prod AS (
         SELECT device_id, DATE(date) AS date, SUM(value) AS prod
-        FROM `mongo_beem.battery_active_returned_energy_measure`
+        FROM `mongodb.battery_active_returned_energy_measure`
         GROUP BY device_id, date
       ),
       energy_charged AS (
         SELECT device_id, DATE(date) AS date, SUM(value) AS energy_charged
-        FROM `mongo_beem.battery_energy_charged_measure`
+        FROM `mongodb.battery_energy_charged_measure`
         GROUP BY device_id, date
       ),
       energy_discharged AS (
         SELECT device_id, DATE(date) AS date, SUM(value) AS energy_discharged
-        FROM `mongo_beem.battery_energy_discharged_measure`
+        FROM `mongodb.battery_energy_discharged_measure`
         GROUP BY device_id, date
       )
     SELECT

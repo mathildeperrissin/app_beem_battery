@@ -119,7 +119,7 @@ selected_sources = st.multiselect("Mesures à afficher", options=list(sources.ke
 def load_data(table, device_id, start, end):
     query = f"""
         SELECT date, value
-        FROM `beem-data-warehouse.extract_mongo_python.{table}`
+        FROM `beem-data-warehouse.mongodb.{table}`
         WHERE deviceId = {device_id}
           AND DATETIME(date) BETWEEN DATETIME('{start}') AND DATETIME('{end}')
     """
