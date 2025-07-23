@@ -250,7 +250,7 @@ with col7:
         names=df["nb_modules"].fillna("Inconnu").astype(str).value_counts().index,
         values=df["nb_modules"].fillna("Inconnu").astype(str).value_counts().values,
         title="Répartition du nombre de modules",
-    )a 
+    )
     st.plotly_chart(fig_modules, use_container_width=True)
 
 with col8:
