@@ -448,6 +448,22 @@ if not df_summary_all.empty:
     summary_all = df_summary_all.groupby("type_message").size().reset_index(name="count")
     summary_all = summary_all.sort_values(by="count", ascending=False)
 
-    st.dataframe(summary_all, use_container_width=True)
+    fig_bar = px.bar(
+        summary_all.head(20),  # Limite aux 20 messages les plus fréquents (ajuste si besoin)
+        x="count",
+        y="type_message",
+        orientation="h",
+        title="Nombre de logs par type et message",
+        labels={"count": "Nombre de logs", "type_message": "Type + message"}
+    )
+
+    fig_bar.update_layout(
+        yaxis=dict(automargin=True),
+        height=700
+    )
+
+    st.plotly_chart(fig_bar, use_container_width=True)
+
+
 else:
     st.info("Aucune donnée à afficher pour ce résumé.")
