@@ -53,8 +53,8 @@ def load_infos():
     SELECT * FROM final;
     """
     df = client.query(query).to_dataframe()
-    df.rename(columns={"id": "device_id"}, inplace=True)
-    return df.dropna(subset=["device_id"])
+    df.rename(columns={"id": "deviceId"}, inplace=True)
+    return df.dropna(subset=["deviceId"])
 
 infos_df = load_infos()
 
@@ -124,24 +124,24 @@ if selected_name:
 if selected_serial:
     filtered_df = filtered_df[filtered_df["serial_number"] == selected_serial]
 
-available_devices = sorted(filtered_df["device_id"].dropna().unique().tolist())
+available_devices = sorted(filtered_df["deviceId"].dropna().unique().tolist())
 
 if not available_devices:
     st.warning("Aucune correspondance pour cette combinaison.")
     st.stop()
 
-selected_device = st.selectbox("🔌 Choisir un device_id", available_devices)
+selected_device = st.selectbox("🔌 Choisir un deviceId", available_devices)
 
 # Affichage infos liées
-ligne = infos_df[infos_df["device_id"] == selected_device].iloc[0]
+ligne = infos_df[infos_df["deviceId"] == selected_device].iloc[0]
 st.info(
     f"👤 Utilisateur associé : **{ligne['lastname']}**\n\n"
     f"🖟️ Numéro de série : **{ligne['serial_number']}**\n\n"
-    f"🔌 device_id sélectionné : **{selected_device}**"
+    f"🔌 deviceId sélectionné : **{selected_device}**"
 )
 
 # ========== 🨾 Informations techniques ==========
-device_info = infos_df[infos_df["device_id"] == selected_device]
+device_info = infos_df[infos_df["deviceId"] == selected_device]
 st.subheader("🔧 Informations techniques")
 created_at_str = pd.to_datetime(device_info["created_at"].values[0]).strftime("%d/%m/%Y") \
     if pd.notnull(device_info["created_at"].values[0]) else "Inconnue"
@@ -166,8 +166,8 @@ with col6:
 
 # ========== 📜 Comparaison Objectif vs Mesuré ==========
 @st.cache_data
-def load_monthly_data(device_id):
-    device_sql = f"'{device_id}'" if isinstance(device_id, str) else str(device_id)
+def load_monthly_data(deviceId):
+    device_sql = f"'{deviceId}'" if isinstance(deviceId, str) else str(deviceId)
 
     query_obj = f"""
         SELECT * FROM `beem-data-warehouse.airbyte_postgresql.objective_battery`
@@ -234,7 +234,7 @@ fig_comp = px.bar(
 st.plotly_chart(fig_comp, use_container_width=True)
 
 df_daily = load_daily_energy_data()
-df_device = df_daily[df_daily["device_id"] == selected_device]
+df_device = df_daily[df_daily["deviceId"] == selected_device]
 
 # ========== 📆 Sélecteur de période ==========
 st.subheader("📊 Visualisation mensuelle de l'énergie")
