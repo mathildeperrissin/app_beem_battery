@@ -63,96 +63,44 @@ def load_daily_energy_data():
     query = """
     WITH
       conso AS (
-        SELECT CAST(device_id AS STRING) AS device_id, DATE(date) AS date, SUM(value) AS conso
-        FROM `beem-data-warehouse.mongo_beem.battery_active_energy_measure`
-        WHERE DATE(date) <= '2025-04-30'
-        GROUP BY device_id, date
-        UNION ALL
-        SELECT CAST(deviceId AS STRING) AS device_id, DATE(date) AS date, SUM(value) AS conso
-        FROM `beem-data-warehouse.mongodb.battery_active_energy_measure`
-        WHERE DATE(date) >= '2025-05-01'
+        SELECT device_id, DATE(date) AS date, SUM(value) AS conso
+        FROM `mongo_beem.battery_active_energy_measure`
         GROUP BY device_id, date
       ),
-
       injection AS (
-        SELECT CAST(device_id AS STRING) AS device_id, DATE(date) AS date, SUM(value) AS injection
-        FROM `beem-data-warehouse.mongo_beem.battery_active_returned_energy_meter_measure`
-        WHERE DATE(date) <= '2025-04-30'
-        GROUP BY device_id, date
-        UNION ALL
-        SELECT CAST(deviceId AS STRING) AS device_id, DATE(date) AS date, SUM(value) AS injection
-        FROM `beem-data-warehouse.mongodb.battery_active_returned_energy_meter_measure`
-        WHERE DATE(date) >= '2025-05-01'
+        SELECT device_id, DATE(date) AS date, SUM(value) AS injection
+        FROM `mongo_beem.battery_active_returned_energy_meter_measure`
         GROUP BY device_id, date
       ),
-
       prod AS (
-        SELECT CAST(device_id AS STRING) AS device_id, DATE(date) AS date, SUM(value) AS prod
-        FROM `beem-data-warehouse.mongo_beem.battery_active_returned_energy_measure`
-        WHERE DATE(date) <= '2025-04-30'
-        GROUP BY device_id, date
-        UNION ALL
-        SELECT CAST(deviceId AS STRING) AS device_id, DATE(date) AS date, SUM(value) AS prod
-        FROM `beem-data-warehouse.mongodb.battery_active_returned_energy_measure`
-        WHERE DATE(date) >= '2025-05-01'
+        SELECT device_id, DATE(date) AS date, SUM(value) AS prod
+        FROM `mongo_beem.battery_active_returned_energy_measure`
         GROUP BY device_id, date
       ),
-
       energy_charged AS (
-        SELECT CAST(device_id AS STRING) AS device_id, DATE(date) AS date, SUM(value) AS energy_charged
-        FROM `beem-data-warehouse.mongo_beem.battery_energy_charged_measure`
-        WHERE DATE(date) <= '2025-04-30'
-        GROUP BY device_id, date
-        UNION ALL
-        SELECT CAST(deviceId AS STRING) AS device_id, DATE(date) AS date, SUM(value) AS energy_charged
-        FROM `beem-data-warehouse.mongodb.battery_energy_charged_measure`
-        WHERE DATE(date) >= '2025-05-01'
+        SELECT device_id, DATE(date) AS date, SUM(value) AS energy_charged
+        FROM `mongo_beem.battery_energy_charged_measure`
         GROUP BY device_id, date
       ),
-
       energy_discharged AS (
-        SELECT CAST(device_id AS STRING) AS device_id, DATE(date) AS date, SUM(value) AS energy_discharged
-        FROM `beem-data-warehouse.mongo_beem.battery_energy_discharged_measure`
-        WHERE DATE(date) <= '2025-04-30'
+        SELECT device_id, DATE(date) AS date, SUM(value) AS energy_discharged
+        FROM `mongo_beem.battery_energy_discharged_measure`
         GROUP BY device_id, date
-        UNION ALL
-        SELECT CAST(deviceId AS STRING) AS device_id, DATE(date) AS date, SUM(value) AS energy_discharged
-        FROM `beem-data-warehouse.mongodb.battery_energy_discharged_measure`
-        WHERE DATE(date) >= '2025-05-01'
-        GROUP BY device_id, date
-      ),
-
-      dates_devices AS (
-        SELECT device_id, date FROM conso
-        UNION ALL
-        SELECT device_id, date FROM injection
-        UNION ALL
-        SELECT device_id, date FROM prod
-        UNION ALL
-        SELECT device_id, date FROM energy_charged
-        UNION ALL
-        SELECT device_id, date FROM energy_discharged
-      ),
-
-      unique_dates_devices AS (
-        SELECT DISTINCT device_id, date FROM dates_devices
       )
-
     SELECT
-      d.device_id,
-      d.date,
+      COALESCE(c.device_id, i.device_id, p.device_id, ec.device_id, ed.device_id) AS device_id,
+      COALESCE(c.date, i.date, p.date, ec.date, ed.date) AS date,
       c.conso,
       i.injection,
       p.prod,
       ec.energy_charged,
       ed.energy_discharged
-    FROM unique_dates_devices d
-    LEFT JOIN conso c ON d.device_id = c.device_id AND d.date = c.date
-    LEFT JOIN injection i ON d.device_id = i.device_id AND d.date = i.date
-    LEFT JOIN prod p ON d.device_id = p.device_id AND d.date = p.date
-    LEFT JOIN energy_charged ec ON d.device_id = ec.device_id AND d.date = ec.date
-    LEFT JOIN energy_discharged ed ON d.device_id = ed.device_id AND d.date = ed.date
-    ORDER BY d.device_id, d.date
+    FROM conso c
+    FULL OUTER JOIN injection i ON c.device_id = i.device_id AND c.date = i.date
+    FULL OUTER JOIN prod p ON COALESCE(c.device_id, i.device_id) = p.device_id AND COALESCE(c.date, i.date) = p.date
+    FULL OUTER JOIN energy_charged ec ON COALESCE(c.device_id, i.device_id, p.device_id) = ec.device_id AND COALESCE(c.date, i.date, p.date) = ec.date
+    FULL OUTER JOIN energy_discharged ed ON COALESCE(c.device_id, i.device_id, p.device_id, ec.device_id) = ed.device_id AND COALESCE(c.date, i.date, p.date, ec.date) = ed.date
+    ORDER BY device_id, date
     """
     return client.query(query).to_dataframe()
 
