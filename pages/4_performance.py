@@ -470,9 +470,6 @@ df_energy_mensuel["taux_autoconsommation (%)"] = df_energy_mensuel.apply(
     axis=1
 )
 
-# 👉 Et maintenant seulement on filtre sur l'année sélectionnée
-df_energy_mensuel = df_energy_mensuel[df_energy_mensuel["year"] == selected_year]
-
 
 # Ajout des noms de mois
 df_energy_mensuel["month_name"] = df_energy_mensuel["month"].map(mois_noms)
@@ -480,21 +477,23 @@ df_energy_mensuel["month_name"] = df_energy_mensuel["month"].map(mois_noms)
 # Fusion avec taux de réalisation
 df_final = pd.merge(
     df_pivot[["month", "month_name", "Taux de réalisation (%)"]],
-    df_energy_mensuel[["month", "taux_autonomie (%)", "taux_autoconsommation (%)"]],
-    on="month",
-    how="left"
+    df_energy_mensuel[["year", "month", "month_name", "taux_autonomie (%)", "taux_autoconsommation (%)"]],
+    on=["month", "month_name"],
+    how="right"
 )
+
 
 # Affichage
 st.subheader("📋 Taux mensuels : Réalisation, Autonomie, Autoconsommation")
 st.dataframe(
-    df_final.rename(columns={"month_name": "Mois"})[[
-        "Mois",
-        "Taux de réalisation (%)",
-        "taux_autonomie (%)",
-        "taux_autoconsommation (%)"
-    ]],
+    df_final.rename(columns={"month_name": "Mois"})[[  
+        "year", "Mois",  
+        "Taux de réalisation (%)",  
+        "taux_autonomie (%)",  
+        "taux_autoconsommation (%)"  
+    ]].sort_values(["year", "month"]),
     use_container_width=True,
-    height=400
+    height=500
 )
+
 
