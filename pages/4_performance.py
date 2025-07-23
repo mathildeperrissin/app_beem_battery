@@ -397,6 +397,19 @@ df_energy_mensuel = (
     })
     .reset_index()
 )
+date_range = pd.date_range(start=df_device["date"].min().replace(day=1), end=datetime.today(), freq="MS")
+complete_months = pd.DataFrame({
+    "year": date_range.year,
+    "month": date_range.month
+})
+
+df_energy_mensuel = pd.merge(
+    complete_months,
+    df_energy_mensuel,
+    on=["year", "month"],
+    how="left"
+)
+
 
 # Calculs des taux
 df_energy_mensuel["taux_autonomie (%)"] = df_energy_mensuel.apply(
