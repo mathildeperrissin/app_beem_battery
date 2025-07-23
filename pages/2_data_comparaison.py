@@ -101,12 +101,12 @@ end_str = datetime.combine(end_date, datetime.max.time()).isoformat()
 
 # ========== 📏 Réglage axe Y ==========
 st.subheader("📏 Réglage de l'échelle Y")
-max_y = st.slider(
-    "Valeur maximale de l'axe Y (Wh)", 
-    min_value=0, 
-    max_value=15000, 
-    value=2000, 
-    step=200
+max_y = st.number_input(
+    "Valeur maximale de l'axe Y (Wh)",
+    min_value=0,
+    max_value=15000,
+    value=600,
+    step=100
 )
 
 # ========== 📊 Données à comparer ==========
