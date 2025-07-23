@@ -275,7 +275,7 @@ max_y = st.number_input(
 
 fig.update_layout(
     title="Courbes combinées des mesures",
-    title_y=0.95,  # remonte le titre (valeur entre 0 et 1)
+    title_y=0.99,  # remonte le titre (valeur entre 0 et 1)
     xaxis_title="Date",
     yaxis_title="Wh",
     legend_title="Type de mesure",
