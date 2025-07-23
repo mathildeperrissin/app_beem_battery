@@ -3,7 +3,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone, date
 from google.cloud import bigquery
 import os
 from google.cloud import bigquery
@@ -87,10 +87,14 @@ for idx, (device_id, col) in enumerate(zip([dev_1, dev_2], [col1, col2]), 1):
 st.subheader("🗓️ Plage temporelle commune")
 col1, col2 = st.columns(2)
 
+# Dates par défaut dynamiques
+default_end = date.today()
+default_start = default_end - timedelta(days=2)
+
 with col1:
-    start_date = st.date_input("Date de début", datetime(2025, 4, 1))
+    start_date = st.date_input("Date de début", default_start)
 with col2:
-    end_date = st.date_input("Date de fin", datetime(2025, 4, 30))
+    end_date = st.date_input("Date de fin", default_end)
 
 start_str = datetime.combine(start_date, datetime.min.time()).isoformat()
 end_str = datetime.combine(end_date, datetime.max.time()).isoformat()
