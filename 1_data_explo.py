@@ -196,7 +196,7 @@ def load_data(table_name, device_id, start_dt, end_dt):
 
     query = f"""
         SELECT *
-        FROM `beem-data-warehouse.extract_mongo_python.{table_name}`
+        FROM `beem-data-warehouse.mongodb.{table_name}`
         WHERE deviceId = {device_id}
           AND DATETIME(date) BETWEEN DATETIME('{start_dt}') AND DATETIME('{end_dt}')
     """
