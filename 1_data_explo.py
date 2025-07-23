@@ -275,11 +275,12 @@ max_y = st.number_input(
 
 fig.update_layout(
     title="Courbes combinées des mesures",
+    title_y=0.95,  # remonte le titre (valeur entre 0 et 1)
     xaxis_title="Date",
     yaxis_title="Wh",
     legend_title="Type de mesure",
     height=600,
-    margin=dict(l=0, r=0, t=40, b=0),
+    margin=dict(l=0, r=0, t=80, b=0),  # plus d’espace en haut
     xaxis=dict(
         range=[start_datetime, end_datetime],
         type="date",
@@ -296,6 +297,7 @@ fig.update_layout(
         x=0
     )
 )
+
 
 
 
