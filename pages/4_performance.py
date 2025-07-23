@@ -272,6 +272,10 @@ st.plotly_chart(fig_comp, use_container_width=True)
 
 df_daily = load_daily_energy_data()
 df_device = df_daily[df_daily["deviceId"] == selected_device]
+if df_device.empty:
+    st.warning("⚠️ Aucune donnée journalière disponible pour ce device.")
+    st.stop()
+
 
 # ========== 📆 Sélecteur de période ==========
 st.subheader("📊 Visualisation mensuelle de l'énergie")
