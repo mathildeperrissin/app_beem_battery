@@ -124,31 +124,35 @@ def load_daily_energy_data():
 
       dates_devices AS (
         SELECT device_id, date FROM conso
-        UNION
+        UNION ALL
         SELECT device_id, date FROM injection
-        UNION
+        UNION ALL
         SELECT device_id, date FROM prod
-        UNION
+        UNION ALL
         SELECT device_id, date FROM energy_charged
-        UNION
+        UNION ALL
         SELECT device_id, date FROM energy_discharged
+      ),
+
+      unique_dates_devices AS (
+        SELECT DISTINCT device_id, date FROM dates_devices
       )
 
     SELECT
-      dd.device_id,
-      dd.date,
+      d.device_id,
+      d.date,
       c.conso,
       i.injection,
       p.prod,
       ec.energy_charged,
       ed.energy_discharged
-    FROM dates_devices dd
-    LEFT JOIN conso c ON dd.device_id = c.device_id AND dd.date = c.date
-    LEFT JOIN injection i ON dd.device_id = i.device_id AND dd.date = i.date
-    LEFT JOIN prod p ON dd.device_id = p.device_id AND dd.date = p.date
-    LEFT JOIN energy_charged ec ON dd.device_id = ec.device_id AND dd.date = ec.date
-    LEFT JOIN energy_discharged ed ON dd.device_id = ed.device_id AND dd.date = ed.date
-    ORDER BY dd.device_id, dd.date
+    FROM unique_dates_devices d
+    LEFT JOIN conso c ON d.device_id = c.device_id AND d.date = c.date
+    LEFT JOIN injection i ON d.device_id = i.device_id AND d.date = i.date
+    LEFT JOIN prod p ON d.device_id = p.device_id AND d.date = p.date
+    LEFT JOIN energy_charged ec ON d.device_id = ec.device_id AND d.date = ec.date
+    LEFT JOIN energy_discharged ed ON d.device_id = ed.device_id AND d.date = ed.date
+    ORDER BY d.device_id, d.date
     """
     return client.query(query).to_dataframe()
 
