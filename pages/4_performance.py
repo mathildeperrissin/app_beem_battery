@@ -343,7 +343,12 @@ st.plotly_chart(fig_mensuel, use_container_width=True)
 available_months = df_device[df_device["year"] == selected_year]["month"].sort_values().unique()
 month_options = [mois_noms[m] for m in available_months]
 selected_month_name = st.selectbox("Mois", month_options)
-selected_month = {v: k for k, v in mois_noms.items()}[selected_month_name]
+if selected_month_name is not None:
+    selected_month = {v: k for k, v in mois_noms.items()}[selected_month_name]
+else:
+    st.warning("Aucun mois sélectionné. Vérifie les données disponibles.")
+    st.stop()
+
 
 
 # ========== 📊 Affichage du graphe ==========
