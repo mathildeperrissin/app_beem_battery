@@ -412,20 +412,24 @@ df_energy_mensuel = pd.merge(
 
 
 # Calculs des taux
-df_energy_mensuel["taux_autonomie (%)"] = df_energy_mensuel.apply(
+# AUTONOMIE
+df_mensuel["taux_autonomie (%)"] = df_mensuel.apply(
     lambda row: round(
-        max(0, min(100, ((row["conso"] - row["injection"]) / row["conso"]) * 100)),
+        max(0, min(100, ((row["prod"] - row["injection"]) / (row["conso"] + row["prod"] - row["injection"])) * 100)),
         1
-    ) if pd.notnull(row["conso"]) and row["conso"] > 0 and pd.notnull(row["injection"])
+    ) if pd.notnull(row["conso"]) and pd.notnull(row["prod"]) and pd.notnull(row["injection"])
+         and (row["conso"] + row["prod"] - row["injection"]) > 0 and (row["prod"] - row["injection"]) >= 0
     else None,
     axis=1
 )
 
-df_energy_mensuel["taux_autoconsommation (%)"] = df_energy_mensuel.apply(
+# AUTOCONSOMMATION
+df_mensuel["taux_autoconsommation (%)"] = df_mensuel.apply(
     lambda row: round(
         max(0, min(100, ((row["prod"] - row["injection"]) / row["prod"]) * 100)),
         1
     ) if pd.notnull(row["prod"]) and row["prod"] > 0 and pd.notnull(row["injection"])
+         and (row["prod"] - row["injection"]) >= 0
     else None,
     axis=1
 )
@@ -487,16 +491,18 @@ df_final = pd.merge(
 st.subheader("📋 Taux mensuels : Réalisation, Autonomie, Autoconsommation")
 df_final_sorted = df_final.sort_values(["year", "month"])
 
-st.subheader("📋 Taux mensuels : Réalisation, Autonomie, Autoconsommation")
+df_final_sorted["Mois"] = df_final_sorted["month_name"] + " " + df_final_sorted["year"].astype(str)
+
 st.dataframe(
-    df_final_sorted.rename(columns={"month_name": "Mois"})[[
-        "year", "Mois",
-        "Taux de réalisation (%)",
-        "taux_autonomie (%)",
-        "taux_autoconsommation (%)"
+    df_final_sorted[[  
+        "Mois",  
+        "Taux de réalisation (%)",  
+        "taux_autonomie (%)",  
+        "taux_autoconsommation (%)"  
     ]],
     use_container_width=True,
     height=500
 )
+
 
 
