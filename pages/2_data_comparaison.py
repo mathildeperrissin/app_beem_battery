@@ -165,7 +165,7 @@ col_batt1, col_batt2 = st.columns(2)
 
 for table in selected_sources:
     with col_batt1:
-        df1 = load_data(table, dev_1, start_str, end_str)
+        df1 = load_data(table, dev_1, start_str, end_str).sort_values("date")
         if not df1.empty:
             fig1 = go.Figure()
             fig1.add_trace(go.Scatter(
@@ -184,7 +184,7 @@ for table in selected_sources:
             st.plotly_chart(fig1, use_container_width=True)
 
     with col_batt2:
-        df2 = load_data(table, dev_2, start_str, end_str)
+        df2 = load_data(table, dev_2, start_str, end_str).sort_values("date")
         if not df2.empty:
             fig2 = go.Figure()
             fig2.add_trace(go.Scatter(
