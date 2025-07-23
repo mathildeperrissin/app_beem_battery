@@ -11,7 +11,7 @@ os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = r"C:\Users\floch\OneDrive\Documen
 client = bigquery.Client()
 
 st.set_page_config(page_title="BART - data explo", layout="wide")
-st.title("🔍 Data exploration one battery")
+st.title("🔍 Data exploration")
 
 # ========== 📦 Charger infos batteries ==========
 @st.cache_data

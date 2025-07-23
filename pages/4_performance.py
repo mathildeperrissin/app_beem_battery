@@ -10,8 +10,8 @@ import plotly.graph_objects as go
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = r"C:\\Users\\floch\\OneDrive\\Documents\\GCP_key\\streamlit_app\\beem-data-warehouse-14a923c674a0.json"
 client = bigquery.Client()
 
-st.set_page_config(page_title="Zoom Battery", layout="wide")
-st.title("🔍 Performance one battery")
+st.set_page_config(page_title="BART - performance", layout="wide")
+st.title("📊 Performance one battery")
 
 # ========== 📦 Charger infos batteries ==========
 @st.cache_data

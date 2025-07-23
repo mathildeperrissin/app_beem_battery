@@ -8,7 +8,7 @@ from google.cloud import bigquery
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = r"C:\Users\floch\OneDrive\Documents\GCP_key\streamlit_app\beem-data-warehouse-14a923c674a0.json"
 
 # Configuration de la page
-st.set_page_config(page_title="Infos générales par batteries", layout="wide")
+st.set_page_config(page_title="BART - global parc", layout="wide")
 st.title("📋 Informations parc batteries")
 
 # ============================
@@ -250,7 +250,7 @@ with col7:
         names=df["nb_modules"].fillna("Inconnu").astype(str).value_counts().index,
         values=df["nb_modules"].fillna("Inconnu").astype(str).value_counts().values,
         title="Répartition du nombre de modules",
-    )
+    )a 
     st.plotly_chart(fig_modules, use_container_width=True)
 
 with col8:

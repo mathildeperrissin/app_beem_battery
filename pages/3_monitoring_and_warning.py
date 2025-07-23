@@ -4,6 +4,9 @@ from google.cloud import bigquery
 
 client = bigquery.Client()
 
+st.set_page_config(page_title="BART - monitoring and warning", layout="wide")
+st.title("Monitoring and warning")
+
 @st.cache_data
 def load_faulty_inverters():
     query = """
