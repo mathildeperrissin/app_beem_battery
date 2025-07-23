@@ -11,7 +11,7 @@ os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = r"C:\\Users\\floch\\OneDrive\\Doc
 client = bigquery.Client()
 
 st.set_page_config(page_title="BART - performance", layout="wide")
-st.title("📊 Performance one battery")
+st.title("📊 Performance battery")
 
 # ========== 📦 Charger infos batteries ==========
 @st.cache_data
@@ -431,8 +431,48 @@ df_energy_mensuel["taux_autoconsommation (%)"] = df_energy_mensuel.apply(
 )
 
 
-# Filtrer sur l'année sélectionnée
+# Création de la table complète de tous les mois, sur les années utiles
+min_date = df_device["date"].min().replace(day=1)
+max_date = df_device["date"].max().replace(day=1)
+date_range = pd.date_range(start=min_date, end=max_date, freq="MS")
+complete_months = pd.DataFrame({
+    "year": date_range.year,
+    "month": date_range.month
+})
+
+# Fusion complète avec les données réelles
+df_energy_mensuel = pd.merge(
+    complete_months,
+    df_energy_mensuel,
+    on=["year", "month"],
+    how="left"
+)
+
+# Ajout des noms de mois
+df_energy_mensuel["month_name"] = df_energy_mensuel["month"].map(mois_noms)
+
+# Calculs des taux
+df_energy_mensuel["taux_autonomie (%)"] = df_energy_mensuel.apply(
+    lambda row: round(
+        max(0, min(100, ((row["conso"] - row["injection"]) / row["conso"]) * 100)),
+        1
+    ) if pd.notnull(row["conso"]) and row["conso"] > 0 and pd.notnull(row["injection"])
+    else None,
+    axis=1
+)
+
+df_energy_mensuel["taux_autoconsommation (%)"] = df_energy_mensuel.apply(
+    lambda row: round(
+        max(0, min(100, ((row["prod"] - row["injection"]) / row["prod"]) * 100)),
+        1
+    ) if pd.notnull(row["prod"]) and row["prod"] > 0 and pd.notnull(row["injection"])
+    else None,
+    axis=1
+)
+
+# 👉 Et maintenant seulement on filtre sur l'année sélectionnée
 df_energy_mensuel = df_energy_mensuel[df_energy_mensuel["year"] == selected_year]
+
 
 # Ajout des noms de mois
 df_energy_mensuel["month_name"] = df_energy_mensuel["month"].map(mois_noms)
