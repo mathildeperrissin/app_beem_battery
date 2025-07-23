@@ -126,12 +126,18 @@ with col6:
 
 st.subheader("⏱️ Plage de temps pour les courbes")
 
+from datetime import date, timedelta
+
+
+# Définir les dates par défaut dynamiquement
+default_end_date = date.today()
+default_start_date = default_end_date - timedelta(days=2)
+
 col1, col2 = st.columns(2)
 with col1:
-    start_date = st.date_input("Date de début", datetime(2025, 4, 1), key="start_main")
+    start_date = st.date_input("Date de début", default_start_date, key="start_main")
 with col2:
-    end_date = st.date_input("Date de fin", datetime(2025, 4, 30), key="end_main")
-
+    end_date = st.date_input("Date de fin", default_end_date, key="end_main")
 
 col3, col4 = st.columns(2)
 with col3:
