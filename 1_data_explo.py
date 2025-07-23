@@ -426,20 +426,14 @@ else:
          key="type_filter_main"
         )
 
-    with col2:
-        min_date = df_logs_all["date"].min().date()
-        max_date = df_logs_all["date"].max().date()
-        date_range = st.date_input("Plage de dates", [min_date, max_date])
+    
 
     df_filtered = df_logs_all.copy()
 
     if type_filter:
         df_filtered = df_filtered[df_filtered["type"].isin(type_filter)]
 
-    if len(date_range) == 2:
-        start = pd.to_datetime(date_range[0]).tz_localize("UTC")
-        end = pd.to_datetime(date_range[1]).tz_localize("UTC")
-        df_filtered = df_filtered[df_filtered["date"].between(start, end)]
+   
 
     st.dataframe(df_filtered, use_container_width=True, height=400)
 
