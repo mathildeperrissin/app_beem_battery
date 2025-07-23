@@ -80,7 +80,7 @@ st.subheader("🗺️ Cartes des batteries par mode de fonctionnement")
 
 df["clean_mode"] = df["working_mode_code"].fillna("Inconnu").astype(str)
 df["clean_mode"] = df["clean_mode"].str.replace(r"^ampace_", "", regex=True)
-df["point_size"] = 3
+df["point_size"] = 1
 
 df_v1 = df[df["hardware_version"] == "ampace_v1"]
 df_v2 = df[df["hardware_version"] == "ampace_v2"]
