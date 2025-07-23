@@ -476,22 +476,25 @@ df_energy_mensuel["month_name"] = df_energy_mensuel["month"].map(mois_noms)
 
 # Fusion avec taux de réalisation
 df_final = pd.merge(
-    df_pivot[["month", "month_name", "Taux de réalisation (%)"]],
     df_energy_mensuel[["year", "month", "month_name", "taux_autonomie (%)", "taux_autoconsommation (%)"]],
-    on=["month", "month_name"],
-    how="right"
+    df_pivot[["month", "Taux de réalisation (%)"]],
+    on="month",
+    how="left"
 )
 
 
 # Affichage
 st.subheader("📋 Taux mensuels : Réalisation, Autonomie, Autoconsommation")
+df_final_sorted = df_final.sort_values(["year", "month"])
+
+st.subheader("📋 Taux mensuels : Réalisation, Autonomie, Autoconsommation")
 st.dataframe(
-    df_final.rename(columns={"month_name": "Mois"})[[  
-        "year", "Mois",  
-        "Taux de réalisation (%)",  
-        "taux_autonomie (%)",  
-        "taux_autoconsommation (%)"  
-    ]].sort_values(["year", "month"]),
+    df_final_sorted.rename(columns={"month_name": "Mois"})[[
+        "year", "Mois",
+        "Taux de réalisation (%)",
+        "taux_autonomie (%)",
+        "taux_autoconsommation (%)"
+    ]],
     use_container_width=True,
     height=500
 )
