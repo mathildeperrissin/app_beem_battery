@@ -53,8 +53,8 @@ def load_infos():
     SELECT * FROM final;
     """
     df = client.query(query).to_dataframe()
-    df.rename(columns={"id": "deviceId"}, inplace=True)
-    return df.dropna(subset=["deviceId"])
+    df.rename(columns={"id": "device_id"}, inplace=True)
+    return df.dropna(subset=["device_id"])
 
 infos_df = load_infos()
 
@@ -63,67 +63,32 @@ def load_daily_energy_data():
     query = """
     WITH
       conso AS (
-        SELECT CAST(device_id AS STRING) AS deviceId, DATE(date) AS date, SUM(value) AS conso
-        FROM `beem-data-warehouse.mongo_beem.battery_active_energy_measure`
-        WHERE DATE(date) <= '2025-04-30'
-        GROUP BY deviceId, date
-        UNION ALL
-        SELECT CAST(deviceId AS STRING) AS deviceId, DATE(date) AS date, SUM(value) AS conso
-        FROM `beem-data-warehouse.mongodb.battery_active_energy_measure`
-        WHERE DATE(date) >= '2025-05-01'
-        GROUP BY deviceId, date
+        SELECT device_id, DATE(date) AS date, SUM(value) AS conso
+        FROM `mongo_beem.battery_active_energy_measure`
+        GROUP BY device_id, date
       ),
-
       injection AS (
-        SELECT CAST(device_id AS STRING) AS deviceId, DATE(date) AS date, SUM(value) AS injection
-        FROM `beem-data-warehouse.mongo_beem.battery_active_returned_energy_meter_measure`
-        WHERE DATE(date) <= '2025-04-30'
-        GROUP BY deviceId, date
-        UNION ALL
-        SELECT CAST(deviceId AS STRING) AS deviceId, DATE(date) AS date, SUM(value) AS injection
-        FROM `beem-data-warehouse.mongodb.battery_active_returned_energy_meter_measure`
-        WHERE DATE(date) >= '2025-05-01'
-        GROUP BY deviceId, date
+        SELECT device_id, DATE(date) AS date, SUM(value) AS injection
+        FROM `mongo_beem.battery_active_returned_energy_meter_measure`
+        GROUP BY device_id, date
       ),
-
       prod AS (
-        SELECT CAST(device_id AS STRING) AS deviceId, DATE(date) AS date, SUM(value) AS prod
-        FROM `beem-data-warehouse.mongo_beem.battery_active_returned_energy_measure`
-        WHERE DATE(date) <= '2025-04-30'
-        GROUP BY deviceId, date
-        UNION ALL
-        SELECT CAST(deviceId AS STRING) AS deviceId, DATE(date) AS date, SUM(value) AS prod
-        FROM `beem-data-warehouse.mongodb.battery_active_returned_energy_measure`
-        WHERE DATE(date) >= '2025-05-01'
-        GROUP BY deviceId, date
+        SELECT device_id, DATE(date) AS date, SUM(value) AS prod
+        FROM `mongo_beem.battery_active_returned_energy_measure`
+        GROUP BY device_id, date
       ),
-
       energy_charged AS (
-        SELECT CAST(device_id AS STRING) AS deviceId, DATE(date) AS date, SUM(value) AS energy_charged
-        FROM `beem-data-warehouse.mongo_beem.battery_energy_charged_measure`
-        WHERE DATE(date) <= '2025-04-30'
-        GROUP BY deviceId, date
-        UNION ALL
-        SELECT CAST(deviceId AS STRING) AS deviceId, DATE(date) AS date, SUM(value) AS energy_charged
-        FROM `beem-data-warehouse.mongodb.battery_energy_charged_measure`
-        WHERE DATE(date) >= '2025-05-01'
-        GROUP BY deviceId, date
+        SELECT device_id, DATE(date) AS date, SUM(value) AS energy_charged
+        FROM `mongo_beem.battery_energy_charged_measure`
+        GROUP BY device_id, date
       ),
-
       energy_discharged AS (
-        SELECT CAST(device_id AS STRING) AS deviceId, DATE(date) AS date, SUM(value) AS energy_discharged
-        FROM `beem-data-warehouse.mongo_beem.battery_energy_discharged_measure`
-        WHERE DATE(date) <= '2025-04-30'
-        GROUP BY deviceId, date
-        UNION ALL
-        SELECT CAST(deviceId AS STRING) AS deviceId, DATE(date) AS date, SUM(value) AS energy_discharged
-        FROM `beem-data-warehouse.mongodb.battery_energy_discharged_measure`
-        WHERE DATE(date) >= '2025-05-01'
-        GROUP BY deviceId, date
+        SELECT device_id, DATE(date) AS date, SUM(value) AS energy_discharged
+        FROM `mongo_beem.battery_energy_discharged_measure`
+        GROUP BY device_id, date
       )
-
     SELECT
-      COALESCE(c.deviceId, i.deviceId, p.deviceId, ec.deviceId, ed.deviceId) AS deviceId,
+      COALESCE(c.device_id, i.device_id, p.device_id, ec.device_id, ed.device_id) AS device_id,
       COALESCE(c.date, i.date, p.date, ec.date, ed.date) AS date,
       c.conso,
       i.injection,
@@ -131,15 +96,13 @@ def load_daily_energy_data():
       ec.energy_charged,
       ed.energy_discharged
     FROM conso c
-    FULL OUTER JOIN injection i ON c.deviceId = i.deviceId AND c.date = i.date
-    FULL OUTER JOIN prod p ON COALESCE(c.deviceId, i.deviceId) = p.deviceId AND COALESCE(c.date, i.date) = p.date
-    FULL OUTER JOIN energy_charged ec ON COALESCE(c.deviceId, i.deviceId, p.deviceId) = ec.deviceId AND COALESCE(c.date, i.date, p.date) = ec.date
-    FULL OUTER JOIN energy_discharged ed ON COALESCE(c.deviceId, i.deviceId, p.deviceId, ec.deviceId) = ed.deviceId AND COALESCE(c.date, i.date, p.date, ec.date) = ed.date
-    ORDER BY deviceId, date
+    FULL OUTER JOIN injection i ON c.device_id = i.device_id AND c.date = i.date
+    FULL OUTER JOIN prod p ON COALESCE(c.device_id, i.device_id) = p.device_id AND COALESCE(c.date, i.date) = p.date
+    FULL OUTER JOIN energy_charged ec ON COALESCE(c.device_id, i.device_id, p.device_id) = ec.device_id AND COALESCE(c.date, i.date, p.date) = ec.date
+    FULL OUTER JOIN energy_discharged ed ON COALESCE(c.device_id, i.device_id, p.device_id, ec.device_id) = ed.device_id AND COALESCE(c.date, i.date, p.date, ec.date) = ed.date
+    ORDER BY device_id, date
     """
     return client.query(query).to_dataframe()
-
-
 
 
 
@@ -161,24 +124,24 @@ if selected_name:
 if selected_serial:
     filtered_df = filtered_df[filtered_df["serial_number"] == selected_serial]
 
-available_devices = sorted(filtered_df["deviceId"].dropna().unique().tolist())
+available_devices = sorted(filtered_df["device_id"].dropna().unique().tolist())
 
 if not available_devices:
     st.warning("Aucune correspondance pour cette combinaison.")
     st.stop()
 
-selected_device = st.selectbox("🔌 Choisir un deviceId", available_devices)
+selected_device = st.selectbox("🔌 Choisir un device_id", available_devices)
 
 # Affichage infos liées
-ligne = infos_df[infos_df["deviceId"] == selected_device].iloc[0]
+ligne = infos_df[infos_df["device_id"] == selected_device].iloc[0]
 st.info(
     f"👤 Utilisateur associé : **{ligne['lastname']}**\n\n"
     f"🖟️ Numéro de série : **{ligne['serial_number']}**\n\n"
-    f"🔌 deviceId sélectionné : **{selected_device}**"
+    f"🔌 device_id sélectionné : **{selected_device}**"
 )
 
 # ========== 🨾 Informations techniques ==========
-device_info = infos_df[infos_df["deviceId"] == selected_device]
+device_info = infos_df[infos_df["device_id"] == selected_device]
 st.subheader("🔧 Informations techniques")
 created_at_str = pd.to_datetime(device_info["created_at"].values[0]).strftime("%d/%m/%Y") \
     if pd.notnull(device_info["created_at"].values[0]) else "Inconnue"
@@ -203,8 +166,8 @@ with col6:
 
 # ========== 📜 Comparaison Objectif vs Mesuré ==========
 @st.cache_data
-def load_monthly_data(deviceId):
-    device_sql = f"'{deviceId}'" if isinstance(deviceId, str) else str(deviceId)
+def load_monthly_data(device_id):
+    device_sql = f"'{device_id}'" if isinstance(device_id, str) else str(device_id)
 
     query_obj = f"""
         SELECT * FROM `beem-data-warehouse.airbyte_postgresql.objective_battery`
@@ -271,11 +234,7 @@ fig_comp = px.bar(
 st.plotly_chart(fig_comp, use_container_width=True)
 
 df_daily = load_daily_energy_data()
-df_device = df_daily[df_daily["deviceId"] == selected_device]
-if df_device.empty:
-    st.warning("⚠️ Aucune donnée journalière disponible pour ce device.")
-    st.stop()
-
+df_device = df_daily[df_daily["device_id"] == selected_device]
 
 # ========== 📆 Sélecteur de période ==========
 st.subheader("📊 Visualisation mensuelle de l'énergie")
@@ -347,12 +306,7 @@ st.plotly_chart(fig_mensuel, use_container_width=True)
 available_months = df_device[df_device["year"] == selected_year]["month"].sort_values().unique()
 month_options = [mois_noms[m] for m in available_months]
 selected_month_name = st.selectbox("Mois", month_options)
-if selected_month_name is not None:
-    selected_month = {v: k for k, v in mois_noms.items()}[selected_month_name]
-else:
-    st.warning("Aucun mois sélectionné. Vérifie les données disponibles.")
-    st.stop()
-
+selected_month = {v: k for k, v in mois_noms.items()}[selected_month_name]
 
 
 # ========== 📊 Affichage du graphe ==========
