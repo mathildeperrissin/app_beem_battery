@@ -68,51 +68,55 @@ def load_daily_energy_data():
         WHERE DATE(date) <= '2025-04-30'
         GROUP BY deviceId, date
         UNION ALL
-        SELECT deviceId, DATE(date) AS date, SUM(value) AS conso
+        SELECT CAST(deviceId AS STRING) AS deviceId, DATE(date) AS date, SUM(value) AS conso
         FROM `beem-data-warehouse.mongodb.battery_active_energy_measure`
         WHERE DATE(date) >= '2025-05-01'
         GROUP BY deviceId, date
       ),
+
       injection AS (
         SELECT CAST(device_id AS STRING) AS deviceId, DATE(date) AS date, SUM(value) AS injection
         FROM `beem-data-warehouse.mongo_beem.battery_active_returned_energy_meter_measure`
         WHERE DATE(date) <= '2025-04-30'
         GROUP BY deviceId, date
         UNION ALL
-        SELECT deviceId, DATE(date) AS date, SUM(value) AS injection
+        SELECT CAST(deviceId AS STRING) AS deviceId, DATE(date) AS date, SUM(value) AS injection
         FROM `beem-data-warehouse.mongodb.battery_active_returned_energy_meter_measure`
         WHERE DATE(date) >= '2025-05-01'
         GROUP BY deviceId, date
       ),
+
       prod AS (
         SELECT CAST(device_id AS STRING) AS deviceId, DATE(date) AS date, SUM(value) AS prod
         FROM `beem-data-warehouse.mongo_beem.battery_active_returned_energy_measure`
         WHERE DATE(date) <= '2025-04-30'
         GROUP BY deviceId, date
         UNION ALL
-        SELECT deviceId, DATE(date) AS date, SUM(value) AS prod
+        SELECT CAST(deviceId AS STRING) AS deviceId, DATE(date) AS date, SUM(value) AS prod
         FROM `beem-data-warehouse.mongodb.battery_active_returned_energy_measure`
         WHERE DATE(date) >= '2025-05-01'
         GROUP BY deviceId, date
       ),
+
       energy_charged AS (
         SELECT CAST(device_id AS STRING) AS deviceId, DATE(date) AS date, SUM(value) AS energy_charged
         FROM `beem-data-warehouse.mongo_beem.battery_energy_charged_measure`
         WHERE DATE(date) <= '2025-04-30'
         GROUP BY deviceId, date
         UNION ALL
-        SELECT deviceId, DATE(date) AS date, SUM(value) AS energy_charged
+        SELECT CAST(deviceId AS STRING) AS deviceId, DATE(date) AS date, SUM(value) AS energy_charged
         FROM `beem-data-warehouse.mongodb.battery_energy_charged_measure`
         WHERE DATE(date) >= '2025-05-01'
         GROUP BY deviceId, date
       ),
+
       energy_discharged AS (
         SELECT CAST(device_id AS STRING) AS deviceId, DATE(date) AS date, SUM(value) AS energy_discharged
         FROM `beem-data-warehouse.mongo_beem.battery_energy_discharged_measure`
         WHERE DATE(date) <= '2025-04-30'
         GROUP BY deviceId, date
         UNION ALL
-        SELECT deviceId, DATE(date) AS date, SUM(value) AS energy_discharged
+        SELECT CAST(deviceId AS STRING) AS deviceId, DATE(date) AS date, SUM(value) AS energy_discharged
         FROM `beem-data-warehouse.mongodb.battery_energy_discharged_measure`
         WHERE DATE(date) >= '2025-05-01'
         GROUP BY deviceId, date
