@@ -113,6 +113,7 @@ max_y = st.number_input(
 sources = {
     "battery_active_energy_measure": "Conso infra-journalière",
     "battery_active_returned_energy_measure": "Production solaire",
+    "battery_active_returned_energy_meter_measure" : "Ré-injection infra-journalière",
     "battery_energy_charged_measure": "Énergie stockée",
     "battery_energy_discharged_measure": "Énergie déstockée",
 }
