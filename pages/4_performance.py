@@ -63,32 +63,32 @@ def load_daily_energy_data():
     query = """
     WITH
       conso AS (
-        SELECT device_id, DATE(date) AS date, SUM(value) AS conso
+        SELECT deviceId, DATE(date) AS date, SUM(value) AS conso
         FROM `mongodb.battery_active_energy_measure`
-        GROUP BY device_id, date
+        GROUP BY deviceId, date
       ),
       injection AS (
-        SELECT device_id, DATE(date) AS date, SUM(value) AS injection
+        SELECT deviceId, DATE(date) AS date, SUM(value) AS injection
         FROM `mongodb.battery_active_returned_energy_meter_measure`
-        GROUP BY device_id, date
+        GROUP BY deviceId, date
       ),
       prod AS (
-        SELECT device_id, DATE(date) AS date, SUM(value) AS prod
+        SELECT deviceId, DATE(date) AS date, SUM(value) AS prod
         FROM `mongodb.battery_active_returned_energy_measure`
-        GROUP BY device_id, date
+        GROUP BY deviceId, date
       ),
       energy_charged AS (
-        SELECT device_id, DATE(date) AS date, SUM(value) AS energy_charged
+        SELECT deviceId, DATE(date) AS date, SUM(value) AS energy_charged
         FROM `mongodb.battery_energy_charged_measure`
-        GROUP BY device_id, date
+        GROUP BY deviceId, date
       ),
       energy_discharged AS (
-        SELECT device_id, DATE(date) AS date, SUM(value) AS energy_discharged
+        SELECT deviceId, DATE(date) AS date, SUM(value) AS energy_discharged
         FROM `mongodb.battery_energy_discharged_measure`
-        GROUP BY device_id, date
+        GROUP BY deviceId, date
       )
     SELECT
-      COALESCE(c.device_id, i.device_id, p.device_id, ec.device_id, ed.device_id) AS device_id,
+      COALESCE(c.deviceId, i.deviceId, p.deviceId, ec.deviceId, ed.deviceId) AS deviceId,
       COALESCE(c.date, i.date, p.date, ec.date, ed.date) AS date,
       c.conso,
       i.injection,
@@ -96,11 +96,11 @@ def load_daily_energy_data():
       ec.energy_charged,
       ed.energy_discharged
     FROM conso c
-    FULL OUTER JOIN injection i ON c.device_id = i.device_id AND c.date = i.date
-    FULL OUTER JOIN prod p ON COALESCE(c.device_id, i.device_id) = p.device_id AND COALESCE(c.date, i.date) = p.date
-    FULL OUTER JOIN energy_charged ec ON COALESCE(c.device_id, i.device_id, p.device_id) = ec.device_id AND COALESCE(c.date, i.date, p.date) = ec.date
-    FULL OUTER JOIN energy_discharged ed ON COALESCE(c.device_id, i.device_id, p.device_id, ec.device_id) = ed.device_id AND COALESCE(c.date, i.date, p.date, ec.date) = ed.date
-    ORDER BY device_id, date
+    FULL OUTER JOIN injection i ON c.deviceId = i.deviceId AND c.date = i.date
+    FULL OUTER JOIN prod p ON COALESCE(c.deviceId, i.deviceId) = p.deviceId AND COALESCE(c.date, i.date) = p.date
+    FULL OUTER JOIN energy_charged ec ON COALESCE(c.deviceId, i.deviceId, p.deviceId) = ec.deviceId AND COALESCE(c.date, i.date, p.date) = ec.date
+    FULL OUTER JOIN energy_discharged ed ON COALESCE(c.deviceId, i.deviceId, p.deviceId, ec.deviceId) = ed.deviceId AND COALESCE(c.date, i.date, p.date, ec.date) = ed.date
+    ORDER BY deviceId, date
     """
     return client.query(query).to_dataframe()
 
