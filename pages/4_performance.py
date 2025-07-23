@@ -326,28 +326,6 @@ df_mensuel["month_name"] = df_mensuel["month"].map(mois_noms)
 for col in ["prod", "injection", "conso"]:
     df_mensuel[col] = pd.to_numeric(df_mensuel[col], errors="coerce")
 
-# Taux d'autonomie : (conso - grid) / conso = (conso - injection) / conso
-# Taux d'autoconsommation : (prod - injection) / prod
-
-df_mensuel["taux_autonomie (%)"] = df_mensuel.apply(
-    lambda row: round(
-        max(0, min(100, ((row["conso"] - row["injection"]) / row["conso"]) * 100)),
-        1
-    ) if pd.notnull(row["conso"]) and row["conso"] > 0 and pd.notnull(row["injection"])
-    else None,
-    axis=1
-)
-
-df_mensuel["taux_autoconsommation (%)"] = df_mensuel.apply(
-    lambda row: round(
-        max(0, min(100, ((row["prod"] - row["injection"]) / row["prod"]) * 100)),
-        1
-    ) if pd.notnull(row["prod"]) and row["prod"] > 0 and pd.notnull(row["injection"])
-    else None,
-    axis=1
-)
-
-
 fig_mensuel = px.bar(
     df_mensuel,
     x="month_name",
@@ -411,29 +389,6 @@ df_energy_mensuel = pd.merge(
 )
 
 
-# Calculs des taux
-# AUTONOMIE
-df_mensuel["taux_autonomie (%)"] = df_mensuel.apply(
-    lambda row: round(
-        max(0, min(100, ((row["prod"] - row["injection"]) / (row["conso"] + row["prod"] - row["injection"])) * 100)),
-        1
-    ) if pd.notnull(row["conso"]) and pd.notnull(row["prod"]) and pd.notnull(row["injection"])
-         and (row["conso"] + row["prod"] - row["injection"]) > 0 and (row["prod"] - row["injection"]) >= 0
-    else None,
-    axis=1
-)
-
-# AUTOCONSOMMATION
-df_mensuel["taux_autoconsommation (%)"] = df_mensuel.apply(
-    lambda row: round(
-        max(0, min(100, ((row["prod"] - row["injection"]) / row["prod"]) * 100)),
-        1
-    ) if pd.notnull(row["prod"]) and row["prod"] > 0 and pd.notnull(row["injection"])
-         and (row["prod"] - row["injection"]) >= 0
-    else None,
-    axis=1
-)
-
 
 # Création de la table complète de tous les mois, sur les années utiles
 min_date = df_device["date"].min().replace(day=1)
@@ -456,14 +411,17 @@ df_energy_mensuel = pd.merge(
 df_energy_mensuel["month_name"] = df_energy_mensuel["month"].map(mois_noms)
 
 # Calculs des taux
+df_energy_mensuel["conso_maison"] = df_energy_mensuel["prod"] + df_energy_mensuel["conso"] - df_energy_mensuel["injection"]
+
 df_energy_mensuel["taux_autonomie (%)"] = df_energy_mensuel.apply(
     lambda row: round(
-        max(0, min(100, ((row["conso"] - row["injection"]) / row["conso"]) * 100)),
+        max(0, min(100, ((row["prod"] - row["injection"]) / row["conso_maison"]) * 100)),
         1
-    ) if pd.notnull(row["conso"]) and row["conso"] > 0 and pd.notnull(row["injection"])
+    ) if pd.notnull(row["conso_maison"]) and row["conso_maison"] > 0 and pd.notnull(row["prod"]) and pd.notnull(row["injection"])
     else None,
     axis=1
 )
+
 
 df_energy_mensuel["taux_autoconsommation (%)"] = df_energy_mensuel.apply(
     lambda row: round(
