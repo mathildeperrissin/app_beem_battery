@@ -394,7 +394,7 @@ else:
     st.plotly_chart(fig_logs, use_container_width=True)
 
 
-# ========== 🔍 Valeurs proches d'une date/heure sélectionnée ==========
+""" # ========== 🔍 Valeurs proches d'une date/heure sélectionnée ==========
 
 st.subheader("📍 Valeurs des mesures les plus proches d'un moment donné")
 
@@ -442,7 +442,7 @@ if closest_rows:
     df_closest = pd.DataFrame(closest_rows)
     st.dataframe(df_closest, use_container_width=True)
 else:
-    st.info("Aucune donnée disponible pour cette période.")
+    st.info("Aucune donnée disponible pour cette période.") """
 
 
 # ========== 🪝 Logs Fault/Warning avec filtres ==========
