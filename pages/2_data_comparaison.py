@@ -158,3 +158,46 @@ fig.update_layout(
 )
 
 st.plotly_chart(fig, use_container_width=True)
+
+# ========== 📉 Détail courbe par courbe ==========
+st.subheader("📉 Détail par mesure et par batterie")
+col_batt1, col_batt2 = st.columns(2)
+
+for table in selected_sources:
+    with col_batt1:
+        df1 = load_data(table, dev_1, start_str, end_str)
+        if not df1.empty:
+            fig1 = go.Figure()
+            fig1.add_trace(go.Scatter(
+                x=df1["date"],
+                y=df1["value"],
+                mode="lines",
+                name=f"{sources[table]} - Batterie 1"
+            ))
+            fig1.update_layout(
+                title=f"{sources[table]} - Batterie 1",
+                xaxis_title="Date",
+                yaxis_title="Wh",
+                height=300,
+                yaxis=dict(range=[0, max_y])
+            )
+            st.plotly_chart(fig1, use_container_width=True)
+
+    with col_batt2:
+        df2 = load_data(table, dev_2, start_str, end_str)
+        if not df2.empty:
+            fig2 = go.Figure()
+            fig2.add_trace(go.Scatter(
+                x=df2["date"],
+                y=df2["value"],
+                mode="lines",
+                name=f"{sources[table]} - Batterie 2"
+            ))
+            fig2.update_layout(
+                title=f"{sources[table]} - Batterie 2",
+                xaxis_title="Date",
+                yaxis_title="Wh",
+                height=300,
+                yaxis=dict(range=[0, max_y])
+            )
+            st.plotly_chart(fig2, use_container_width=True)
