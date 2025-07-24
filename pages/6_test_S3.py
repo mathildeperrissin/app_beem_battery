@@ -210,7 +210,7 @@ serial_options = get_serial_numbers()
 serial_number = st.selectbox("Numéro de série", serial_options)
 
 
-selected_date = st.date_input("📅 Date à analyser", datetime(2025, 6, 1).date())
+selected_date = st.date_input("📅 Date à analyser", datetime.today().date())
 # Heure du bug
 col_bug1, col_bug2 = st.columns(2)
 with col_bug1:
