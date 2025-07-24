@@ -48,7 +48,7 @@ def load_json_data(serial_number, selected_date, start_time, end_time):
     switch_date = datetime(2025, 7, 23).date()
     filtered_files = []
 
-    # Cas 1 : avant le 23/07/2025 → utiliser l'index
+    # Cas 1 : avant le 23/07/2025 → index JSON
     if selected_date < switch_date:
         index_blob_path = f"{serial_number}_index.json"
         index_blob = index_bucket.blob(index_blob_path)
@@ -67,27 +67,27 @@ def load_json_data(serial_number, selected_date, start_time, end_time):
             except Exception as e:
                 print(f"Erreur parsing date dans {entry.get('path', '?')} : {e}")
 
-    # Cas 2 : à partir du 23/07/2025 → parcourir le dossier
+    # Cas 2 : à partir du 23/07/2025 → arborescence GCS
     else:
-        year = selected_date.year
-        month = selected_date.month
-        day = selected_date.day
-        prefix = f"{serial_number}/{year}/{selected_date.month}/{selected_date.day}/"
-
+        prefix = f"{serial_number}/{selected_date.year}/{selected_date.month}/{selected_date.day}/"
         blobs = client.list_blobs(BUCKET_NAME, prefix=prefix)
+
         for blob in blobs:
             filename = os.path.basename(blob.name)
             try:
-                # Extrait la date/heure du nom du fichier, ex: 135847063_2025-07-23T13-58-43-xxx.json
                 parts = filename.split('_')
-                timestamp_str = parts[1].split('.')[0]  # 2025-07-23T13-58-43
+                timestamp_raw = parts[1].split('.')[0]            # "2025-07-23T13-58-43-000"
+                timestamp_str = timestamp_raw[:19]                # "2025-07-23T13-58-43"
                 dt = datetime.strptime(timestamp_str, "%Y-%m-%dT%H-%M-%S")
                 if dt.date() == selected_date and start_time <= dt.time() <= end_time:
                     filtered_files.append((dt, blob.name))
             except Exception as e:
-                print(f"❌ Erreur parsing date depuis nom de fichier {filename} : {e}")
+                st.warning(f"⚠️ Erreur parsing date depuis nom de fichier {filename} : {e}")
 
-    # Télécharger les fichiers
+    # Message de debug
+    st.info(f"📂 {len(filtered_files)} fichiers trouvés pour {selected_date} entre {start_time} et {end_time}")
+
+    # Téléchargement et parsing des fichiers
     records = []
     for dt, path in filtered_files:
         try:
@@ -99,9 +99,10 @@ def load_json_data(serial_number, selected_date, start_time, end_time):
                 "values": parsed["data"]
             })
         except Exception as e:
-            print(f"❌ Erreur de lecture {path} : {e}")
+            st.error(f"❌ Erreur de lecture {path} : {e}")
 
     return records
+
 
 
 # --- Création du DataFrame ---
