@@ -461,6 +461,28 @@ st.dataframe(
     use_container_width=True,
     height=500
 )
+mois_selection = st.selectbox("🗓️ Choisir un mois :", df_final_sorted["Mois"])
+
+row = df_final_sorted[df_final_sorted["Mois"] == mois_selection].iloc[0]
+col1, col2, col3 = st.columns(3)
+col1.metric("🎯 Réalisation", f"{row['Taux de réalisation (%)']} %")
+col2.metric("⚡ Autonomie", f"{row['taux_autonomie (%)']} %")
+col3.metric("🏠 Autoconsommation", f"{row['taux_autoconsommation (%)']} %")
+
+cols_taux = ["Taux de réalisation (%)", "taux_autonomie (%)", "taux_autoconsommation (%)"]
+df_final_sorted[cols_taux] = df_final_sorted[cols_taux].apply(pd.to_numeric, errors="coerce")
+
+fig_line = px.line(
+    df_final_sorted,
+    x="Mois",
+    y=["Taux de réalisation (%)", "taux_autonomie (%)", "taux_autoconsommation (%)"],
+    markers=True,
+    title="📈 Taux mensuels - Évolution",
+    labels={"value": "%", "variable": "Indicateur"}
+)
+st.plotly_chart(fig_line, use_container_width=True)
+
+
 
 
 

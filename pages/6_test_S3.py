@@ -12,6 +12,29 @@ os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = r"C:\Users\floch\OneDrive\Documen
 BUCKET_NAME = "beem-backend-battery-warranty"
 INDEX_BUCKET_NAME = "beem-battery-indexes"  # nouveau
 
+#récupération serial number
+from google.cloud import bigquery
+@st.cache_data
+def get_serial_numbers():
+    client = bigquery.Client()
+    query = """
+        SELECT d.serial_number
+        FROM `beem-data-warehouse.airbyte_postgresql.battery_device` AS d
+        LEFT JOIN `beem-data-warehouse.airbyte_postgresql.battery_live_data` AS ld 
+            ON ld.battery_id = d.id
+        LEFT JOIN `beem-data-warehouse.airbyte_postgresql.house` AS h 
+            ON d.house_id = h.id
+        WHERE d.deleted_at IS NULL
+          AND d.replaced_by_id IS NULL
+          AND d.warranty_status = 'activated'
+          AND d.serial_number NOT IN ('021LOLL190154M', '021LOLF080008M')
+    """
+    query_job = client.query(query)
+    results = query_job.result()
+    serials = [row.serial_number for row in results]
+    return sorted(serials)
+
+
 # --- Chargement des fichiers JSON depuis GCS ---
 @st.cache_data
 def load_json_data(serial_number, selected_date, start_time, end_time):
@@ -148,14 +171,11 @@ def records_to_dataframe(records):
 # --- Interface utilisateur ---
 st.title("📈 Suivi de données batterie (GCS)")
 
-serial_number = st.selectbox("Numéro de série", [
-    "021LOLF080004M",
-    "021LOLF080008M",
-    "021LOLK080001M"
-])
+serial_options = get_serial_numbers()
+serial_number = st.selectbox("Numéro de série", serial_options)
+
 
 selected_date = st.date_input("📅 Date à analyser", datetime(2025, 6, 1).date())
-
 # Heure du bug
 col_bug1, col_bug2 = st.columns(2)
 with col_bug1:
