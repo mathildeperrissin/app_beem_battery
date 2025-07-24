@@ -45,50 +45,59 @@ def load_json_data(serial_number, selected_date, start_time, end_time):
     data_bucket = client.bucket(BUCKET_NAME)
     index_bucket = client.bucket(INDEX_BUCKET_NAME)
 
-    switch_date = datetime(2025, 7, 23).date()
+    date_only = selected_date
+    records = []
     filtered_files = []
 
-    # Cas 1 : avant le 23/07/2025 → index JSON
-    if selected_date < switch_date:
+    def try_arborescence():
+        arbo_files = []
+        prefix = f"{serial_number}/{selected_date.year}/{selected_date.month}/{selected_date.day}/"
+        blobs = client.list_blobs(BUCKET_NAME, prefix=prefix)
+        for blob in blobs:
+            filename = os.path.basename(blob.name)
+            try:
+                parts = filename.split('_')
+                timestamp_raw = parts[1].split('.')[0]         # "2025-07-23T13-58-43-000"
+                timestamp_str = timestamp_raw[:19]             # "2025-07-23T13-58-43"
+                dt = datetime.strptime(timestamp_str, "%Y-%m-%dT%H-%M-%S")
+                if dt.date() == date_only and start_time <= dt.time() <= end_time:
+                    arbo_files.append((dt, blob.name))
+            except Exception as e:
+                st.warning(f"⚠️ Erreur parsing nom de fichier {filename} : {e}")
+        return arbo_files
+
+    def try_index():
+        index_files = []
         index_blob_path = f"{serial_number}_index.json"
         index_blob = index_bucket.blob(index_blob_path)
         try:
             content = index_blob.download_as_text()
             index = json.loads(content)
+            for entry in index:
+                try:
+                    dt = datetime.strptime(entry["date"], "%Y-%m-%d %H:%M:%S")
+                    if dt.date() == date_only and start_time <= dt.time() <= end_time:
+                        index_files.append((dt, entry["path"]))
+                except Exception as e:
+                    print(f"Erreur parsing date dans {entry.get('path', '?')} : {e}")
         except Exception as e:
             st.error(f"❌ Erreur de lecture de l’index JSON `{index_blob_path}` : {e}")
-            return []
+        return index_files
 
-        for entry in index:
-            try:
-                dt = datetime.strptime(entry["date"], "%Y-%m-%d %H:%M:%S")
-                if dt.date() == selected_date and start_time <= dt.time() <= end_time:
-                    filtered_files.append((dt, entry["path"]))
-            except Exception as e:
-                print(f"Erreur parsing date dans {entry.get('path', '?')} : {e}")
+    # Logique principale selon la date
+    if date_only < datetime(2025, 7, 21).date():
+        filtered_files = try_index()
+    elif date_only > datetime(2025, 7, 23).date():
+        filtered_files = try_arborescence()
+    else:  # dates 21, 22, 23 → arbo + fallback index si vide
+        filtered_files = try_arborescence()
+        if not filtered_files:
+            st.info("ℹ️ Aucune donnée trouvée dans l’arborescence, tentative via l’index…")
+            filtered_files = try_index()
 
-    # Cas 2 : à partir du 23/07/2025 → arborescence GCS
-    else:
-        prefix = f"{serial_number}/{selected_date.year}/{selected_date.month}/{selected_date.day}/"
-        blobs = client.list_blobs(BUCKET_NAME, prefix=prefix)
-
-        for blob in blobs:
-            filename = os.path.basename(blob.name)
-            try:
-                parts = filename.split('_')
-                timestamp_raw = parts[1].split('.')[0]            # "2025-07-23T13-58-43-000"
-                timestamp_str = timestamp_raw[:19]                # "2025-07-23T13-58-43"
-                dt = datetime.strptime(timestamp_str, "%Y-%m-%dT%H-%M-%S")
-                if dt.date() == selected_date and start_time <= dt.time() <= end_time:
-                    filtered_files.append((dt, blob.name))
-            except Exception as e:
-                st.warning(f"⚠️ Erreur parsing date depuis nom de fichier {filename} : {e}")
-
-    # Message de debug
     st.info(f"📂 {len(filtered_files)} fichiers trouvés pour {selected_date} entre {start_time} et {end_time}")
 
-    # Téléchargement et parsing des fichiers
-    records = []
+    # Téléchargement des fichiers
     for dt, path in filtered_files:
         try:
             blob = data_bucket.blob(path)

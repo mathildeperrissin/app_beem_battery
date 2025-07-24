@@ -40,7 +40,7 @@ def process_battery(serial):
         existing_index = []
         existing_paths = set()
         if index_blob.exists():
-            existing_index = json.loads(index_blob.download_as_text())
+            existing_index = json.loads(index_blob.download_as_text(timeout=300))
             existing_paths = set(e["path"] for e in existing_index)
 
         # Construire l'index à jour
