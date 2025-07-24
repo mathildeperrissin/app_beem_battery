@@ -72,7 +72,7 @@ def load_json_data(serial_number, selected_date, start_time, end_time):
         year = selected_date.year
         month = selected_date.month
         day = selected_date.day
-        prefix = f"{serial_number}/{year}/{month}/{day}/"
+        prefix = f"{serial_number}/{year}/{selected_date.month}/{selected_date.day}/"
 
         blobs = client.list_blobs(BUCKET_NAME, prefix=prefix)
         for blob in blobs:
