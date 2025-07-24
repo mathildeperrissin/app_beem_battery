@@ -12,6 +12,9 @@ os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = r"C:\Users\floch\OneDrive\Documen
 BUCKET_NAME = "beem-backend-battery-warranty"
 INDEX_BUCKET_NAME = "beem-battery-indexes"  # nouveau
 
+#----- titre de la page
+st.title("📈 debug data")
+
 #récupération serial number
 from google.cloud import bigquery
 @st.cache_data
@@ -42,27 +45,49 @@ def load_json_data(serial_number, selected_date, start_time, end_time):
     data_bucket = client.bucket(BUCKET_NAME)
     index_bucket = client.bucket(INDEX_BUCKET_NAME)
 
-    # Charger l’index depuis le bucket d’index
-    index_blob_path = f"{serial_number}_index.json"
-    index_blob = index_bucket.blob(index_blob_path)
-    try:
-        content = index_blob.download_as_text()
-        index = json.loads(content)
-    except Exception as e:
-        st.error(f"❌ Erreur de lecture de l’index JSON `{index_blob_path}` : {e}")
-        return []
-
-    # Filtrer les fichiers
+    switch_date = datetime(2025, 7, 23).date()
     filtered_files = []
-    for entry in index:
-        try:
-            dt = datetime.strptime(entry["date"], "%Y-%m-%d %H:%M:%S")
-            if dt.date() == selected_date and start_time <= dt.time() <= end_time:
-                filtered_files.append((dt, entry["path"]))
-        except Exception as e:
-            print(f"Erreur parsing date dans {entry.get('path', '?')} : {e}")
 
-    # Télécharger les fichiers de données
+    # Cas 1 : avant le 23/07/2025 → utiliser l'index
+    if selected_date < switch_date:
+        index_blob_path = f"{serial_number}_index.json"
+        index_blob = index_bucket.blob(index_blob_path)
+        try:
+            content = index_blob.download_as_text()
+            index = json.loads(content)
+        except Exception as e:
+            st.error(f"❌ Erreur de lecture de l’index JSON `{index_blob_path}` : {e}")
+            return []
+
+        for entry in index:
+            try:
+                dt = datetime.strptime(entry["date"], "%Y-%m-%d %H:%M:%S")
+                if dt.date() == selected_date and start_time <= dt.time() <= end_time:
+                    filtered_files.append((dt, entry["path"]))
+            except Exception as e:
+                print(f"Erreur parsing date dans {entry.get('path', '?')} : {e}")
+
+    # Cas 2 : à partir du 23/07/2025 → parcourir le dossier
+    else:
+        year = selected_date.year
+        month = selected_date.month
+        day = selected_date.day
+        prefix = f"{serial_number}/{year}/{month}/{day}/"
+
+        blobs = client.list_blobs(BUCKET_NAME, prefix=prefix)
+        for blob in blobs:
+            filename = os.path.basename(blob.name)
+            try:
+                # Extrait la date/heure du nom du fichier, ex: 135847063_2025-07-23T13-58-43-xxx.json
+                parts = filename.split('_')
+                timestamp_str = parts[1].split('.')[0]  # 2025-07-23T13-58-43
+                dt = datetime.strptime(timestamp_str, "%Y-%m-%dT%H-%M-%S")
+                if dt.date() == selected_date and start_time <= dt.time() <= end_time:
+                    filtered_files.append((dt, blob.name))
+            except Exception as e:
+                print(f"❌ Erreur parsing date depuis nom de fichier {filename} : {e}")
+
+    # Télécharger les fichiers
     records = []
     for dt, path in filtered_files:
         try:
@@ -77,6 +102,7 @@ def load_json_data(serial_number, selected_date, start_time, end_time):
             print(f"❌ Erreur de lecture {path} : {e}")
 
     return records
+
 
 # --- Création du DataFrame ---
 def records_to_dataframe(records):
@@ -169,7 +195,6 @@ def records_to_dataframe(records):
 
 
 # --- Interface utilisateur ---
-st.title("📈 Suivi de données batterie (GCS)")
 
 serial_options = get_serial_numbers()
 serial_number = st.selectbox("Numéro de série", serial_options)
