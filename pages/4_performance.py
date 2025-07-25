@@ -326,13 +326,30 @@ df_mensuel["month_name"] = df_mensuel["month"].map(mois_noms)
 for col in ["prod", "injection", "conso"]:
     df_mensuel[col] = pd.to_numeric(df_mensuel[col], errors="coerce")
 
-fig_mensuel = px.bar(
-    df_mensuel,
-    x="month_name",
-    y=["conso", "injection", "prod"],
-    title=f"Énergie - Agrégation mensuelle ({selected_year})",
-    labels={"value": "Wh", "month_name": "Mois"},
+# Création des deux barres : prod et conso+injection
+df_mensuel_grouped = pd.DataFrame({
+    "month_name": df_mensuel["month_name"],
+    "prod": df_mensuel["prod"],
+    "conso_injection": df_mensuel["conso"] + df_mensuel["injection"]
+})
+
+df_melted_month = df_mensuel_grouped.melt(
+    id_vars="month_name",
+    value_vars=["prod", "conso_injection"],
+    var_name="variable",
+    value_name="Wh"
 )
+
+fig_mensuel = px.bar(
+    df_melted_month,
+    x="month_name",
+    y="Wh",
+    color="variable",
+    barmode="group",
+    title=f"Énergie - Agrégation mensuelle ({selected_year})",
+    labels={"month_name": "Mois", "Wh": "Wh"}
+)
+
 
 st.plotly_chart(fig_mensuel, use_container_width=True)
 
