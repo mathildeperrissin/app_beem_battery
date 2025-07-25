@@ -8,7 +8,10 @@ import plotly.graph_objects as go
 
 # Authentification
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = r"C:\\Users\\floch\\OneDrive\\Documents\\GCP_key\\streamlit_app\\beem-data-warehouse-14a923c674a0.json"
-client = bigquery.Client()
+# Authentification
+client = bigquery.Client()  # ← utilisé pour `mongo_beem` (région US par défaut)
+client_eu = bigquery.Client(location="EU")  # ← pour `mongodb`
+
 
 st.set_page_config(page_title="BART - performance", layout="wide")
 st.title("📊 Performance battery")
@@ -60,104 +63,101 @@ infos_df = load_infos()
 
 @st.cache_data
 def load_daily_energy_data():
-    query = """
-    WITH before_may AS (
+    query_before = """
+      -- Requête avant mai 2025 (mongo_beem - US)
       WITH
-      conso AS (
-        SELECT device_id, DATE(date) AS date, SUM(value) AS conso
-        FROM `mongo_beem.battery_active_energy_measure`
-        GROUP BY device_id, date
-      ),
-      injection AS (
-        SELECT device_id, DATE(date) AS date, SUM(value) AS injection
-        FROM `mongo_beem.battery_active_returned_energy_meter_measure`
-        GROUP BY device_id, date
-      ),
-      prod AS (
-        SELECT device_id, DATE(date) AS date, SUM(value) AS prod
-        FROM `mongo_beem.battery_active_returned_energy_measure`
-        GROUP BY device_id, date
-      ),
-      energy_charged AS (
-        SELECT device_id, DATE(date) AS date, SUM(value) AS energy_charged
-        FROM `mongo_beem.battery_energy_charged_measure`
-        GROUP BY device_id, date
-      ),
-      energy_discharged AS (
-        SELECT device_id, DATE(date) AS date, SUM(value) AS energy_discharged
-        FROM `mongo_beem.battery_energy_discharged_measure`
-        GROUP BY device_id, date
-      )
-    SELECT
-      COALESCE(c.device_id, i.device_id, p.device_id, ec.device_id, ed.device_id) AS device_id,
-      COALESCE(c.date, i.date, p.date, ec.date, ed.date) AS date,
-      c.conso,
-      i.injection,
-      p.prod,
-      ec.energy_charged,
-      ed.energy_discharged
-    FROM conso c
-    FULL OUTER JOIN injection i ON c.device_id = i.device_id AND c.date = i.date
-    FULL OUTER JOIN prod p ON COALESCE(c.device_id, i.device_id) = p.device_id AND COALESCE(c.date, i.date) = p.date
-    FULL OUTER JOIN energy_charged ec ON COALESCE(c.device_id, i.device_id, p.device_id) = ec.device_id AND COALESCE(c.date, i.date, p.date) = ec.date
-    FULL OUTER JOIN energy_discharged ed ON COALESCE(c.device_id, i.device_id, p.device_id, ec.device_id) = ed.device_id AND COALESCE(c.date, i.date, p.date, ec.date) = ed.date
-    WHERE c.date < "2025-05-01"
-    ORDER BY device_id, date
-) , 
-
-after_may AS (
-  WITH
-      conso AS (
-        SELECT deviceId, DATE(date) AS date, SUM(value) AS conso
-        FROM `mongodb.battery_active_energy_measure`
-        GROUP BY deviceId, date
-      ),
-      injection AS (
-        SELECT deviceId, DATE(date) AS date, SUM(value) AS injection
-        FROM `mongodb.battery_active_returned_energy_meter_measure`
-        GROUP BY deviceId, date
-      ),
-      prod AS (
-        SELECT deviceId, DATE(date) AS date, SUM(value) AS prod
-        FROM `mongodb.battery_active_returned_energy_measure`
-        GROUP BY deviceId, date
-      ),
-      energy_charged AS (
-        SELECT deviceId, DATE(date) AS date, SUM(value) AS energy_charged
-        FROM `mongodb.battery_energy_charged_measure`
-        GROUP BY deviceId, date
-      ),
-      energy_discharged AS (
-        SELECT deviceId, DATE(date) AS date, SUM(value) AS energy_discharged
-        FROM `mongodb.battery_energy_discharged_measure`
-        GROUP BY deviceId, date
-      )
-    SELECT
-      COALESCE(c.deviceId, i.deviceId, p.deviceId, ec.deviceId, ed.deviceId) AS device_Id,
-      COALESCE(c.date, i.date, p.date, ec.date, ed.date) AS date,
-      c.conso,
-      i.injection,
-      p.prod,
-      ec.energy_charged,
-      ed.energy_discharged
-    FROM conso c
-    FULL OUTER JOIN injection i ON c.deviceId = i.deviceId AND c.date = i.date
-    FULL OUTER JOIN prod p ON COALESCE(c.deviceId, i.deviceId) = p.deviceId AND COALESCE(c.date, i.date) = p.date
-    FULL OUTER JOIN energy_charged ec ON COALESCE(c.deviceId, i.deviceId, p.deviceId) = ec.deviceId AND COALESCE(c.date, i.date, p.date) = ec.date
-    FULL OUTER JOIN energy_discharged ed ON COALESCE(c.deviceId, i.deviceId, p.deviceId, ec.deviceId) = ed.deviceId AND COALESCE(c.date, i.date, p.date, ec.date) = ed.date
-    WHERE c.date >= "2025-05-01"
-    ORDER BY device_id, date
-    
-),
-
-final AS (SELECT * FROM before_may
-UNION ALL
-SELECT * FROM after_may
-ORDER BY device_id, date)
-
-SELECT * FROM final 
+        conso AS (
+          SELECT device_id, DATE(date) AS date, SUM(value) AS conso
+          FROM beem-data-warehouse.mongo_beem.battery_active_energy_measure
+          GROUP BY device_id, date
+        ),
+        injection AS (
+          SELECT device_id, DATE(date) AS date, SUM(value) AS injection
+          FROM beem-data-warehouse.mongo_beem.battery_active_returned_energy_meter_measure
+          GROUP BY device_id, date
+        ),
+        prod AS (
+          SELECT device_id, DATE(date) AS date, SUM(value) AS prod
+          FROM beem-data-warehouse.mongo_beem.battery_active_returned_energy_measure
+          GROUP BY device_id, date
+        ),
+        energy_charged AS (
+          SELECT device_id, DATE(date) AS date, SUM(value) AS energy_charged
+          FROM beem-data-warehouse.mongo_beem.battery_energy_charged_measure
+          GROUP BY device_id, date
+        ),
+        energy_discharged AS (
+          SELECT device_id, DATE(date) AS date, SUM(value) AS energy_discharged
+          FROM beem-data-warehouse.mongo_beem.battery_energy_discharged_measure
+          GROUP BY device_id, date
+        )
+      SELECT
+        COALESCE(c.device_id, i.device_id, p.device_id, ec.device_id, ed.device_id) AS device_id,
+        COALESCE(c.date, i.date, p.date, ec.date, ed.date) AS date,
+        c.conso,
+        i.injection,
+        p.prod,
+        ec.energy_charged,
+        ed.energy_discharged
+      FROM conso c
+      FULL OUTER JOIN injection i ON c.device_id = i.device_id AND c.date = i.date
+      FULL OUTER JOIN prod p ON COALESCE(c.device_id, i.device_id) = p.device_id AND COALESCE(c.date, i.date) = p.date
+      FULL OUTER JOIN energy_charged ec ON COALESCE(c.device_id, i.device_id, p.device_id) = ec.device_id AND COALESCE(c.date, i.date, p.date) = ec.date
+      FULL OUTER JOIN energy_discharged ed ON COALESCE(c.device_id, i.device_id, p.device_id, ec.device_id) = ed.device_id AND COALESCE(c.date, i.date, p.date, ec.date) = ed.date
+      WHERE c.date < "2025-05-01"
+      ORDER BY device_id, date
     """
-    return client.query(query).to_dataframe()
+
+    query_after = """
+      -- Requête après mai 2025 (mongodb - EU)
+      WITH
+        conso AS (
+          SELECT deviceId, DATE(date) AS date, SUM(value) AS conso
+          FROM beem-data-warehouse.mongodb.battery_active_energy_measure
+          GROUP BY deviceId, date
+        ),
+        injection AS (
+          SELECT deviceId, DATE(date) AS date, SUM(value) AS injection
+          FROM beem-data-warehouse.mongodb.battery_active_returned_energy_meter_measure
+          GROUP BY deviceId, date
+        ),
+        prod AS (
+          SELECT deviceId, DATE(date) AS date, SUM(value) AS prod
+          FROM beem-data-warehouse.mongodb.battery_active_returned_energy_measure
+          GROUP BY deviceId, date
+        ),
+        energy_charged AS (
+          SELECT deviceId, DATE(date) AS date, SUM(value) AS energy_charged
+          FROM beem-data-warehouse.mongodb.battery_energy_charged_measure
+          GROUP BY deviceId, date
+        ),
+        energy_discharged AS (
+          SELECT deviceId, DATE(date) AS date, SUM(value) AS energy_discharged
+          FROM beem-data-warehouse.mongodb.battery_energy_discharged_measure
+          GROUP BY deviceId, date
+        )
+      SELECT
+        COALESCE(c.deviceId, i.deviceId, p.deviceId, ec.deviceId, ed.deviceId) AS device_id,
+        COALESCE(c.date, i.date, p.date, ec.date, ed.date) AS date,
+        c.conso,
+        i.injection,
+        p.prod,
+        ec.energy_charged,
+        ed.energy_discharged
+      FROM conso c
+      FULL OUTER JOIN injection i ON c.deviceId = i.deviceId AND c.date = i.date
+      FULL OUTER JOIN prod p ON COALESCE(c.deviceId, i.deviceId) = p.deviceId AND COALESCE(c.date, i.date) = p.date
+      FULL OUTER JOIN energy_charged ec ON COALESCE(c.deviceId, i.deviceId, p.deviceId) = ec.deviceId AND COALESCE(c.date, i.date, p.date) = ec.date
+      FULL OUTER JOIN energy_discharged ed ON COALESCE(c.deviceId, i.deviceId, p.deviceId, ec.deviceId) = ed.deviceId AND COALESCE(c.date, i.date, p.date, ec.date) = ed.date
+      WHERE c.date >= "2025-05-01"
+      ORDER BY device_id, date
+    """
+
+    df_before_may = client.query(query_before).to_dataframe()
+    df_after_may = client_eu.query(query_after).to_dataframe()
+
+    return pd.concat([df_before_may, df_after_may], ignore_index=True).sort_values(["device_id", "date"])
+
 
 
 
@@ -334,7 +334,6 @@ fig_mensuel = px.bar(
     labels={"value": "Wh", "month_name": "Mois"},
 )
 
-
 st.plotly_chart(fig_mensuel, use_container_width=True)
 
 available_months = df_device[df_device["year"] == selected_year]["month"].sort_values().unique()
@@ -482,7 +481,6 @@ fig_line = px.line(
     labels={"value": "%", "variable": "Indicateur"}
 )
 st.plotly_chart(fig_line, use_container_width=True)
-
 
 
 
