@@ -326,15 +326,52 @@ df_mensuel["month_name"] = df_mensuel["month"].map(mois_noms)
 for col in ["prod", "injection", "conso"]:
     df_mensuel[col] = pd.to_numeric(df_mensuel[col], errors="coerce")
 
-fig_mensuel = px.bar(
-    df_mensuel,
-    x="month_name",
-    y=["conso", "injection", "prod"],
+import plotly.graph_objects as go
+
+# Création d'une figure vide
+fig_mensuel = go.Figure()
+
+# Barre Production (groupe 1)
+fig_mensuel.add_trace(go.Bar(
+    x=df_mensuel["month_name"],
+    y=df_mensuel["prod"],
+    name="Production",
+    marker_color="#F4A6B9",  # Rose clair
+    offsetgroup="1",
+))
+
+# Barre Conso (groupe 2, empilé)
+fig_mensuel.add_trace(go.Bar(
+    x=df_mensuel["month_name"],
+    y=df_mensuel["conso"],
+    name="Consommation",
+    marker_color="#8ECFF3",  # Bleu clair
+    offsetgroup="2",
+    base=0
+))
+
+# Barre Injection (même groupe, empilé au-dessus de la conso)
+fig_mensuel.add_trace(go.Bar(
+    x=df_mensuel["month_name"],
+    y=df_mensuel["injection"],
+    name="Injection",
+    marker_color="#1F77B4",  # Bleu foncé
+    offsetgroup="2",
+    base=df_mensuel["conso"]  # Injection au-dessus de conso
+))
+
+# Mise en forme
+fig_mensuel.update_layout(
     title=f"Énergie - Agrégation mensuelle ({selected_year})",
-    labels={"value": "Wh", "month_name": "Mois"},
+    xaxis_title="Mois",
+    yaxis_title="Wh",
+    barmode="group",
+    bargap=0.2,
 )
 
+# Affichage
 st.plotly_chart(fig_mensuel, use_container_width=True)
+
 
 available_months = df_device[df_device["year"] == selected_year]["month"].sort_values().unique()
 month_options = [mois_noms[m] for m in available_months]
@@ -353,14 +390,47 @@ else:
     df_grouped = df_filtered.groupby(df_filtered["date"].dt.day).sum(numeric_only=True).reset_index()
     df_grouped.rename(columns={"date": "Jour"}, inplace=True)
 
-    fig = px.bar(
-        df_grouped,
-        x="Jour",
-        y=["conso", "injection", "prod"],
-        title=f"Énergie - Agrégation quotidienne ({selected_month_name} {selected_year})",
-        labels={"value": "Wh", "Jour": "Jour du mois"},
-    )
-    st.plotly_chart(fig, use_container_width=True)
+    fig = go.Figure()
+
+# Production seule (barre 1)
+fig.add_trace(go.Bar(
+    x=df_grouped["Jour"],
+    y=df_grouped["prod"],
+    name="Production",
+    marker_color="#F4A6B9",  # Rose clair
+    offsetgroup="1",
+))
+
+# Consommation (barre 2 empilée - base = 0)
+fig.add_trace(go.Bar(
+    x=df_grouped["Jour"],
+    y=df_grouped["conso"],
+    name="Consommation",
+    marker_color="#8ECFF3",  # Bleu clair
+    offsetgroup="2",
+    base=0,
+))
+
+# Injection (barre 2 empilée - base = conso)
+fig.add_trace(go.Bar(
+    x=df_grouped["Jour"],
+    y=df_grouped["injection"],
+    name="Injection",
+    marker_color="#1F77B4",  # Bleu foncé
+    offsetgroup="2",
+    base=df_grouped["conso"]
+))
+
+fig.update_layout(
+    barmode="group",
+    title=f"Énergie - Agrégation quotidienne ({selected_month_name} {selected_year})",
+    xaxis_title="Jour du mois",
+    yaxis_title="Wh",
+    bargap=0.2,
+)
+
+st.plotly_chart(fig, use_container_width=True)
+
 
 # ========== 📋 Nouveau tableau final : taux recalculés proprement ==========
 

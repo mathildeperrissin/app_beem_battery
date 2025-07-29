@@ -67,7 +67,7 @@ LEFT JOIN `beem-data-warehouse.airbyte_postgresql.house` AS h
 WHERE d.deleted_at IS NULL
   AND d.replaced_by_id IS NULL
   AND d.warranty_status = 'activated'
-  AND d.serial_number NOT IN ('021LOLL190154M', '021LOLF080008M')
+  AND d.serial_number NOT IN ('021LOLL190154M', '021LOLF080008M','519100001533250214000009','519100001533250214000010')
     """
     return client.query(query).to_dataframe()
 
