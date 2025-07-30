@@ -1,6 +1,6 @@
 import streamlit as st
 
-st.set_page_config(page_title="Glossaire Data", layout="wide")
+st.set_page_config(page_title="BART - Glossaire", layout="wide")
 st.title("📚 Glossaire des pages et sources de données")
 
 markdown_text = """
@@ -31,9 +31,9 @@ markdown_text = """
     - **Source** : MongoDB (chargée dans BigQuery via connecteur interne de l’équipe dev)
     - **fréquence de mise à jour :**
     - **Tables utilisées** :
-        - `battery_active_energy_measure` : **Consommation infra-journalière** (Wh par batterie)
-        - `battery_active_returned_energy_meter_measure` : **Réinjection infra-journalière** (Wh par batterie)
-        - `battery_active_returned_energy_measure` : **Production solaire (somme MPPT)** (Wh total)
+        - `battery_active_energy_measure` : **Consommation infra-journalière** (Wh)
+        - `battery_active_returned_energy_meter_measure` : **Réinjection infra-journalière** (Wh)
+        - `battery_active_returned_energy_measure` : **Production solaire (somme MPPT)** (Wh)
         - `battery_energy_charged_measure` : **Énergie stockée** (Wh)
         - `battery_energy_discharged_measure` : **Énergie déstockée** (Wh)
     - **Méthode de traitement** :
@@ -92,7 +92,6 @@ markdown_text = """
         - Visualisation comparative (courbe combinée et détails séparés)
     - **Unité** : Wattheure (**Wh**)
 
----
 
 ### 📊 **Fonctionnalités affichées**
 
@@ -139,17 +138,16 @@ markdown_text = """
         - Jointures FULL OUTER pour combiner toutes les sources
     - **Unité** : Wattheure (**Wh**)
 
----
-
 ### 📐 **Calculs & Méthodes**
 
-- **Taux d'autonomie (%)** :
-    `(production - injection) / (production + consommation - injection) * 100`
-    
-- **Taux d'autoconsommation (%)** :
-    `(production - injection) / production * 100`
+- **Taux d'autonomie (%)** :  
+  `(production - injection) / (production + consommation - injection) * 100`  
+  → Part des besoins énergétiques totaux du foyer couverte par la production solaire locale (sans recours au réseau).
 
----
+- **Taux d'autoconsommation (%)** :  
+  `(production - injection) / production * 100`  
+  → Part de la production solaire consommée directement par le foyer (sans réinjection sur le réseau).
+
 
 ### 📊 **Fonctionnalités proposées**
 
@@ -192,8 +190,6 @@ markdown_text = """
         - Le nombre et les noms d’index peuvent varier selon la version de la batterie
         - Pour les batteries V1 les fichiers contiennent **350 données dont on connait partiellement les intitulés**
 
----
-
 ### 📐 **Traitement et affichage**
 
 - Fichiers filtrés selon une plage horaire :
@@ -202,8 +198,6 @@ markdown_text = """
 - Conversion en DataFrame avec colonne `date` + colonnes dynamiques
 - Si **350 colonnes** → renommage avec la liste d’index connue (batteries V1)
 - Sinon → noms par défaut : `Index 0`, `Index 1`, etc.
-
----
 
 ### 📊 **Fonctionnalités**
 
