@@ -326,8 +326,6 @@ df_mensuel["month_name"] = df_mensuel["month"].map(mois_noms)
 for col in ["prod", "injection", "conso"]:
     df_mensuel[col] = pd.to_numeric(df_mensuel[col], errors="coerce")
 
-import plotly.graph_objects as go
-
 # Création d'une figure vide
 fig_mensuel = go.Figure()
 
@@ -551,7 +549,4 @@ fig_line = px.line(
     labels={"value": "%", "variable": "Indicateur"}
 )
 st.plotly_chart(fig_line, use_container_width=True)
-
-
-
 
