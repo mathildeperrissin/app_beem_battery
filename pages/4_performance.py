@@ -273,17 +273,17 @@ df_pivot["Taux de réalisation (%)"] = df_pivot.apply(
 # Affichage du graphe Objectif vs Mesuré
 df_comparaison["month"] = df_comparaison["month"].astype(str)
 
-fig_comp = px.bar(
-    df_comparaison,
-    x="month_name",
-    y="Wh",
-    color="Source",
-    barmode="group",
-    title="Comparaison mensuelle : Objectif vs Production réelle",
-    labels={"month": "Mois", "Wh": "Énergie (Wh)"},
-    category_orders={"month": [str(i) for i in range(1, 13)]}
-)
-st.plotly_chart(fig_comp, use_container_width=True)
+#fig_comp = px.bar(                                     Suppression du graph
+#    df_comparaison,
+#    x="month_name",
+#    y="Wh",
+#    color="Source",
+#    barmode="group",
+#    title="Comparaison mensuelle : Objectif vs Production réelle",
+#    labels={"month": "Mois", "Wh": "Énergie (Wh)"},
+#    category_orders={"month": [str(i) for i in range(1, 13)]}
+#)
+#st.plotly_chart(fig_comp, use_container_width=True)
 
 df_daily = load_daily_energy_data()
 df_device = df_daily[df_daily["device_id"] == selected_device]
@@ -519,7 +519,7 @@ df_final_sorted["Mois"] = df_final_sorted["month_name"] + " " + df_final_sorted[
 st.dataframe(
     df_final_sorted[[  
         "Mois",  
-        "Taux de réalisation (%)",  
+        #"Taux de réalisation (%)",  
         "taux_autonomie (%)",  
         "taux_autoconsommation (%)"  
     ]],
