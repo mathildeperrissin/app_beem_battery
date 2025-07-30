@@ -251,30 +251,30 @@ if st.button("Charger les données"):
         num_cols = df.shape[1] - 1
 
         # Sélection des index pour le graphique combiné
-        st.markdown("### 🎯 Sélection des index pour le graphique combiné")
-        index_names = df.columns[1:].tolist()  # ignorer la colonne "date"
-        selected_names = st.multiselect(
-            "Colonnes disponibles",
-            options=index_names,
-            default=index_names[:min(5, len(index_names))]
-        )
+        #st.markdown("### 🎯 Sélection des index pour le graphique combiné")
+        #index_names = df.columns[1:].tolist()  # ignorer la colonne "date"
+        #selected_names = st.multiselect(
+        #    "Colonnes disponibles",
+        #    options=index_names,
+        #    default=index_names[:min(5, len(index_names))]
+        #)
 
         # ✅ Graphique combiné
-        if selected_names:
-            fig_combined = go.Figure()
-            for name in selected_names:
-                fig_combined.add_trace(go.Scatter(
-                    x=df['date'], y=df[name], mode='lines', name=name
-                ))
+        #if selected_names:
+        #    fig_combined = go.Figure()
+        #    for name in selected_names:
+        #        fig_combined.add_trace(go.Scatter(
+        #            x=df['date'], y=df[name], mode='lines', name=name
+        #        ))
 
-            fig_combined.add_vline(x=bug_datetime, line=dict(color="red", dash="dash"), name="Heure du bug")
-            fig_combined.update_layout(
-                title="📊 Graphique combiné",
-                xaxis_title="Heure",
-                yaxis_title="Valeur",
-                legend_title="Index"
-            )
-            st.plotly_chart(fig_combined, use_container_width=True)
+        #    fig_combined.add_vline(x=bug_datetime, line=dict(color="red", dash="dash"), name="Heure du bug")
+        #    fig_combined.update_layout(
+        #        title="📊 Graphique combiné",
+        #        xaxis_title="Heure",
+        #        yaxis_title="Valeur",
+        #        legend_title="Index"
+        #    )
+        #    st.plotly_chart(fig_combined, use_container_width=True)
 
         # ✅ Graphiques individuels pour tous les index
         st.markdown("### 📉 Graphiques individuels pour tous les index")
@@ -282,7 +282,8 @@ if st.button("Charger les données"):
             fig = px.line(
                 df, x="date", y=name,
                 title=name,
-                labels={"date": "Heure", name: "Valeur"}
+                labels={"date": "Heure", name: "Valeur"},
+                markers=True
             )
 
             fig.add_vline(x=bug_datetime, line_dash="dash", line_color="red")
