@@ -80,8 +80,7 @@ for idx, (device_id, col) in enumerate(zip([dev_1, dev_2], [col1, col2]), 1):
         st.metric("Cycles", int(device_info["nb_cycles"]))
         st.metric("Modules", int(device_info["nb_modules"]))
         st.metric("SOH (%)", round(device_info["global_soh"], 1))
-        mode_clean = str(device_info["working_mode_code"]).replace("ampace_v1_", "").replace("ampace_v2_", "")
-        st.metric("Mode", mode_clean)
+        
 
 # ========== Filtres temporels communs ==========
 st.subheader("🗓️ Plage temporelle commune")

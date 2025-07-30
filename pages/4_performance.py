@@ -214,10 +214,7 @@ with col4:
     st.metric("Nb modules", int(device_info["nb_modules"].values[0]))
 with col5:
     st.metric("SOH (%)", round(device_info["global_soh"].values[0], 1))
-with col6:
-    mode_clean = device_info["working_mode_code"].astype(str).values[0]
-    mode_clean = mode_clean.replace("ampace_v1_", "").replace("ampace_v2_", "")
-    st.metric("Mode de fonctionnement", mode_clean)
+
 
 # ========== 📜 Comparaison Objectif vs Mesuré ==========
 @st.cache_data
