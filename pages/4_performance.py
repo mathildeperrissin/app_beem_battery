@@ -547,3 +547,44 @@ fig_line = px.line(
 )
 st.plotly_chart(fig_line, use_container_width=True)
 
+# ========== 📆 Calcul des taux sur une période personnalisée ==========
+
+st.subheader("🧮 Taux sur une période personnalisée")
+
+date_min_device = pd.to_datetime(device_info["created_at"].values[0])
+date_max_data = df_device["date"].max()
+today = pd.to_datetime(datetime.today().date())
+
+col1, col2 = st.columns(2)
+with col1:
+    date_debut = st.date_input("Date de début", value=date_min_device.date(), min_value=date_min_device.date(), max_value=today)
+with col2:
+    date_fin = st.date_input("Date de fin", value=today, min_value=date_min_device.date(), max_value=today)
+
+# Contrôle de cohérence
+if date_debut > date_fin:
+    st.error("La date de début doit être antérieure à la date de fin.")
+else:
+    df_custom = df_device[(df_device["date"] >= pd.to_datetime(date_debut)) & (df_device["date"] <= pd.to_datetime(date_fin))]
+
+    if df_custom.empty:
+        st.warning("Aucune donnée disponible pour cette période.")
+    else:
+        prod = df_custom["prod"].sum()
+        injection = df_custom["injection"].sum()
+        conso = df_custom["conso"].sum()
+        conso_maison = prod + conso - injection
+
+        if conso_maison > 0:
+            taux_autonomie = round(max(0, min(100, ((prod - injection) / conso_maison) * 100)), 1)
+        else:
+            taux_autonomie = None
+
+        if prod > 0:
+            taux_autoconsommation = round(max(0, min(100, ((prod - injection) / prod) * 100)), 1)
+        else:
+            taux_autoconsommation = None
+
+        col1, col2 = st.columns(2)
+        col1.metric("⚡ Autonomie (%)", f"{taux_autonomie if taux_autonomie is not None else 'N/A'}")
+        col2.metric("🏠 Autoconsommation (%)", f"{taux_autoconsommation if taux_autoconsommation is not None else 'N/A'}")
