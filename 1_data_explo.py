@@ -355,7 +355,7 @@ st.subheader("📍 Fault ou warning sur la période")
 @st.cache_data
 def load_logs_all(device_id):
     query = f"""
-        SELECT date, type, message, cleared, cleared_at, cleared_by
+        SELECT date, code, type, message, cleared, cleared_at, cleared_by
         FROM `beem-data-warehouse.airbyte_postgresql.battery_device_log`
         WHERE battery_id = {device_id}
           AND type IN ('fault', 'warning')
@@ -363,6 +363,7 @@ def load_logs_all(device_id):
     df = client.query(query).to_dataframe()
     df["date"] = pd.to_datetime(df["date"], utc=True)
     return df.sort_values("date", ascending=False)
+
 
 # Charger les logs si ce n’est pas déjà fait
 df_logs_all = load_logs_all(selected_device)
@@ -442,17 +443,7 @@ else:
 
 st.subheader("🪝 Logs ")
 
-@st.cache_data
-def load_logs_all(device_id):
-    query = f"""
-        SELECT date, type, message, cleared, cleared_at, cleared_by
-        FROM `beem-data-warehouse.airbyte_postgresql.battery_device_log`
-        WHERE battery_id = {device_id}
-          AND type IN ('fault', 'warning')
-    """
-    df = client.query(query).to_dataframe()
-    df["date"] = pd.to_datetime(df["date"], utc=True)
-    return df.sort_values("date", ascending=False)
+
 
 df_logs_all = load_logs_all(selected_device)
 
@@ -478,7 +469,12 @@ else:
 
    
 
-    st.dataframe(df_filtered, use_container_width=True, height=400)
+    # ordre voulu des colonnes avec "code" entre "date" et "type"
+    cols = ["date", "code", "type", "message", "cleared", "cleared_at", "cleared_by"]
+    df_filtered = df_filtered[cols]
+
+    st.dataframe(df_filtered, use_container_width=True, height=400, hide_index=True)
+
 
 # ========== 📊 Résumé des logs par type + message (filtres indépendants) ==========
 st.subheader("🧮 Total des logs par type et message")
