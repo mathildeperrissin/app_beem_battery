@@ -207,6 +207,24 @@ def load_data(table_name, device_id, start_dt, end_dt):
     df["date"] = pd.to_datetime(df["date"])
     return df
 
+# ========= 🔋 Loader SOC (battery_status_entity) =========
+@st.cache_data
+def load_soc(device_id, start_dt, end_dt):
+    # device_id peut venir en str => on cast en int si besoin
+    if isinstance(device_id, str) and device_id.isdigit():
+        device_id = int(device_id)
+
+    query = f"""
+        SELECT date, soc
+        FROM `beem-data-warehouse.mongodb.battery_status_entity`
+        WHERE batteryId = {device_id}
+          AND TIMESTAMP(date) BETWEEN TIMESTAMP('{start_dt}') AND TIMESTAMP('{end_dt}')
+          AND soc IS NOT NULL
+        ORDER BY date
+    """
+    df = client.query(query).to_dataframe()
+    df["date"] = pd.to_datetime(df["date"])
+    return df
 
 
 st.subheader("📊 Visualisation combinée des mesures")
@@ -219,6 +237,10 @@ selected_sources = st.multiselect(
 )
 
 fig = go.Figure()
+
+# Option pour afficher / masquer le SOC (%)
+show_soc = st.toggle("Afficher le SOC (%)", value=True)
+
 
 for table_name in selected_sources:
     meta = sources[table_name]
@@ -238,6 +260,22 @@ for table_name in selected_sources:
         mode="lines",
         name=meta["title"]
     ))
+
+# ----- Trace SOC sur axe Y droit -----
+if show_soc:
+    df_soc = load_soc(selected_device, start_str, end_str)
+    if df_soc.empty:
+        st.warning("Aucun SOC sur la période.")
+    else:
+        df_soc = df_soc.sort_values("date")
+        fig.add_trace(go.Scatter(
+            x=df_soc["date"],
+            y=df_soc["soc"],
+            mode="lines",
+            name="SOC (%)",
+            yaxis="y2"  # utilise l'axe droit
+        ))
+
     
 # Ajout de la ligne verticale du repère
 fig.add_vline(
@@ -284,7 +322,15 @@ fig.update_layout(
         fixedrange=True
     ),
     yaxis=dict(
+        title="Wh",
         range=[0, max_y]
+    ),
+    yaxis2=dict(
+        title="SOC (%)",
+        overlaying="y",
+        side="right",
+        range=[0, 100],
+        ticksuffix="%"   # optionnel, juste pour l’affichage
     ),
     legend=dict(
         orientation="h",
