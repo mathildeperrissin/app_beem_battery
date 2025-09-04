@@ -226,6 +226,42 @@ def load_soc(device_id, start_dt, end_dt):
     df["date"] = pd.to_datetime(df["date"])
     return df
 
+# ========= 🔋 battery_status_entity : colonnes & loader =========
+@st.cache_data
+def get_status_numeric_cols():
+    """Récupère les colonnes numériques de la table battery_status_entity (hors batteryId / date)."""
+    table = client.get_table("beem-data-warehouse.mongodb.battery_status_entity")
+    numeric_types = {"INTEGER", "INT64", "FLOAT", "FLOAT64", "NUMERIC", "BIGNUMERIC"}
+    cols = [
+        f.name for f in table.schema
+        if f.field_type in numeric_types and f.name not in ("batteryId", "date")
+    ]
+    cols.sort()
+    return cols
+
+@st.cache_data
+def load_status_entity(device_id, start_dt, end_dt, columns):
+    """Charge date + colonnes demandées pour la batterie et la période données."""
+    if isinstance(device_id, str) and device_id.isdigit():
+        device_id = int(device_id)
+
+    # dédoublonne et conserve l'ordre
+    cols = ["date"] + list(dict.fromkeys(columns))
+    select_cols = ", ".join(cols)
+
+    query = f"""
+        SELECT {select_cols}
+        FROM `beem-data-warehouse.mongodb.battery_status_entity`
+        WHERE batteryId = {device_id}
+          AND TIMESTAMP(date) BETWEEN TIMESTAMP('{start_dt}') AND TIMESTAMP('{end_dt}')
+        ORDER BY date
+    """
+    df = client.query(query).to_dataframe()
+    if not df.empty and "date" in df.columns:
+        df["date"] = pd.to_datetime(df["date"])
+    return df
+
+
 
 st.subheader("📊 Visualisation combinée des mesures")
 
@@ -346,6 +382,96 @@ fig.update_layout(
 
 
 st.plotly_chart(fig, use_container_width=True)
+
+# ========== 🔋 Courbes battery_status_entity (2 axes Y) ==========
+st.subheader("🔋 Mesures battery_status_entity (2 axes Y)")
+
+available_status_cols = get_status_numeric_cols()
+if len(available_status_cols) < 2:
+    st.info("Pas assez de colonnes numériques dans battery_status_entity pour tracer deux courbes.")
+else:
+    c1, c2 = st.columns(2)
+    with c1:
+        y_left_col = st.selectbox(
+            "Axe Y gauche",
+            options=available_status_cols,
+            index=(available_status_cols.index("batteryPower") if "batteryPower" in available_status_cols else 0),
+            key="bse_y_left"
+        )
+    with c2:
+        # par défaut: SOC à droite si dispo
+        default_right_idx = (
+            available_status_cols.index("soc") if "soc" in available_status_cols
+            else (1 if len(available_status_cols) > 1 else 0)
+        )
+        y_right_col = st.selectbox(
+            "Axe Y droite",
+            options=available_status_cols,
+            index=default_right_idx,
+            key="bse_y_right"
+        )
+
+    df_status = load_status_entity(selected_device, start_str, end_str, [y_left_col, y_right_col])
+
+    if df_status.empty:
+        st.info("Aucune donnée battery_status_entity sur cette période.")
+    else:
+        fig_status = go.Figure()
+
+        # Trace gauche
+        fig_status.add_trace(go.Scatter(
+            x=df_status["date"],
+            y=df_status[y_left_col],
+            mode="lines",
+            name=y_left_col,
+            yaxis="y"
+        ))
+
+        # Trace droite (si différente)
+        if y_right_col != y_left_col and y_right_col in df_status.columns:
+            fig_status.add_trace(go.Scatter(
+                x=df_status["date"],
+                y=df_status[y_right_col],
+                mode="lines",
+                name=y_right_col,
+                yaxis="y2"
+            ))
+
+        # Axes dynamiques + formatage SOC en %
+        yaxis_left = dict(title=y_left_col)
+        yaxis_right = dict(title=y_right_col, overlaying="y", side="right")
+
+        if y_left_col == "soc":
+            yaxis_left.update(range=[0, 100], ticksuffix="%")
+        if y_right_col == "soc":
+            yaxis_right.update(range=[0, 100], ticksuffix="%")
+
+        fig_status.update_layout(
+            title="battery_status_entity",
+            xaxis=dict(
+                range=[start_datetime, end_datetime],
+                type="date",
+                fixedrange=True
+            ),
+            yaxis=yaxis_left,
+            yaxis2=yaxis_right,
+            height=380,
+            margin=dict(l=0, r=0, t=60, b=0),
+            legend=dict(
+                orientation="h",
+                yanchor="bottom", y=1.02,
+                xanchor="left", x=0
+            )
+        )
+
+        st.plotly_chart(fig_status, use_container_width=True)
+
+
+
+
+
+
+
 
 # ========== 📍 Graphique séparé des logs sur la même échelle de temps ==========
 
