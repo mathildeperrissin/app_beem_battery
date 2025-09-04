@@ -28,7 +28,7 @@ def load_infos():
       WHERE d.deleted_at IS NULL
         AND d.replaced_by_id IS NULL
         AND d.warranty_status = 'activated'
-        AND d.serial_number NOT IN ('021LOLL190154M','021LOLF080008M')
+        --AND d.serial_number NOT IN ('021LOLL190154M','021LOLF080008M')
         --AND u.id NOT IN (22, 4395, 34538)
         --AND d.hardware_version = 'ampace_v1'
     ),
@@ -384,7 +384,7 @@ fig.update_layout(
 st.plotly_chart(fig, use_container_width=True)
 
 # ========== 🔋 Courbes battery_status_entity (2 axes Y) ==========
-st.subheader("🔋 Mesures battery_status_entity (2 axes Y)")
+st.subheader("🔋 Mesures battery_status_entity")
 
 available_status_cols = get_status_numeric_cols()
 if len(available_status_cols) < 2:

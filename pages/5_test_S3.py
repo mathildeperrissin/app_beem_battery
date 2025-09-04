@@ -30,7 +30,7 @@ def get_serial_numbers():
         WHERE d.deleted_at IS NULL
           AND d.replaced_by_id IS NULL
           AND d.warranty_status = 'activated'
-          AND d.serial_number NOT IN ('021LOLL190154M', '021LOLF080008M')
+          --AND d.serial_number NOT IN ('021LOLL190154M', '021LOLF080008M')
     """
     query_job = client.query(query)
     results = query_job.result()

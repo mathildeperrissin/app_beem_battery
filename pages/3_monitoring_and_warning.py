@@ -40,11 +40,7 @@ def load_faulty_inverters():
         )
       ORDER BY last_known_measure_date ASC
     ) AS virtual_table
-    WHERE serial_number NOT IN (
-      '021LOLF080008M',
-      '519100001533250214000009',
-      '519100001533250214000010'
-    )
+    
     """
     return client.query(query).to_dataframe()
 
