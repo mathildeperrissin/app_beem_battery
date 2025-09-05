@@ -261,7 +261,87 @@ def load_status_entity(device_id, start_dt, end_dt, columns):
         df["date"] = pd.to_datetime(df["date"])
     return df
 
+# ========= 🧭 Mapping + loaders frise modes =========
+# v1 : workingMode
+WORKING_MODE_LABELS = {
+    0: "Idle",
+    1: "PV Check",
+    2: "Standby",
+    3: "Selfcheck",
+    4: "Inverter_wait",
+    5: "OffGridInverter",
+    6: "OnGridPassby",
+    7: "OnGridCharge",
+    8: "OnGridDischarge",
+    9: "Fault",
+}
 
+# v2 : mode
+MODE_LABELS = {
+    0: "smart",
+    1: "backup",
+    2: "economic",
+    3: "off_grid",
+    4: "hybrid",
+    5: "hybrid_economic",
+}
+
+@st.cache_data
+def get_mode_cols():
+    """Renvoie les colonnes de mode présentes dans battery_status_entity."""
+    table = client.get_table("beem-data-warehouse.mongodb.battery_status_entity")
+    present = {f.name for f in table.schema}
+    # on garde l'ordre stable : workingMode (v1) puis mode (v2) si présents
+    return [c for c in ["workingMode", "mode"] if c in present]
+
+@st.cache_data
+def load_modes_entity(device_id, start_dt, end_dt, cols):
+    """Charge date + colonnes de mode pour la batterie et la période données."""
+    if isinstance(device_id, str) and device_id.isdigit():
+        device_id = int(device_id)
+    if not cols:
+        return pd.DataFrame(columns=["date"])
+    select_cols = ", ".join(["date"] + cols)
+    query = f"""
+        SELECT {select_cols}
+        FROM `beem-data-warehouse.mongodb.battery_status_entity`
+        WHERE batteryId = {device_id}
+          AND TIMESTAMP(date) BETWEEN TIMESTAMP('{start_dt}') AND TIMESTAMP('{end_dt}')
+        ORDER BY date
+    """
+    df = client.query(query).to_dataframe()
+    if not df.empty:
+        df["date"] = pd.to_datetime(df["date"])
+    return df
+
+def _compress_to_segments(df, col, end_dt):
+    """
+    Transforme une série discrète en segments [start, end) pour la frise.
+    end du dernier segment = end_dt.
+    """
+    s = df[["date", col]].dropna().sort_values("date")
+    if s.empty:
+        return pd.DataFrame(columns=["start", "end", "track", "value", "label"])
+
+    # nouvelle "run" à chaque changement de valeur
+    run_id = (s[col] != s[col].shift()).cumsum()
+    segs = s.groupby(run_id).agg(start=("date", "first"), value=(col, "last")).reset_index(drop=True)
+    segs["end"] = segs["start"].shift(-1)
+    segs.loc[segs["end"].isna(), "end"] = end_dt
+    segs["track"] = col
+
+    def map_label(track, v):
+        mapping = WORKING_MODE_LABELS if track == "workingMode" else MODE_LABELS
+        try:
+            return mapping.get(int(v), str(v))
+        except Exception:
+            return mapping.get(v, str(v))
+
+    segs["label"] = [map_label(col, v) for v in segs["value"]]
+    segs = segs[segs["end"] > segs["start"]]
+    return segs[["start", "end", "track", "value", "label"]]
+
+#########################"GROS GRAPH combiné"""""########################
 
 st.subheader("📊 Visualisation combinée des mesures")
 
@@ -467,6 +547,66 @@ else:
         st.plotly_chart(fig_status, use_container_width=True)
 
 
+# ========== 🧭 Frise temporelle des modes (V1/V2) ==========
+st.subheader("🧭 Frise temporelle : workingMode (v1) / mode (v2)")
+
+mode_cols = get_mode_cols()
+if not mode_cols:
+    st.info("Aucune colonne 'workingMode' ou 'mode' trouvée dans battery_status_entity.")
+else:
+    selected_tracks = st.multiselect(
+        "Pistes à afficher",
+        options=mode_cols,
+        default=mode_cols,
+        help="Affiche workingMode (v1) et/ou mode (v2) sous forme de frise."
+    )
+
+    df_modes = load_modes_entity(selected_device, start_str, end_str, selected_tracks)
+
+    if df_modes.empty:
+        st.info("Aucune donnée de mode sur cette période.")
+    else:
+        segs = (
+            pd.concat([_compress_to_segments(df_modes, c, end_datetime) for c in selected_tracks],
+                      ignore_index=True)
+            if selected_tracks else pd.DataFrame()
+        )
+
+        if segs.empty:
+            st.info("Pas de segments exploitables pour les modes.")
+        else:
+            # libellés des pistes
+            name_map = {"workingMode": "Working mode (v1)", "mode": "Mode (v2)"}
+            segs["track"] = segs["track"].map(name_map).fillna(segs["track"])
+
+            fig_mode = px.timeline(
+                segs,
+                x_start="start", x_end="end",
+                y="track",
+                color="label",
+                hover_data={
+                    "label": True,
+                    "value": True,
+                    "start": "|%Y-%m-%d %H:%M",
+                    "end": "|%Y-%m-%d %H:%M",
+                    "track": False,
+                },
+                title="Frise temporelle des modes"
+            )
+
+            # ordre stable + même fenêtre de temps
+            order = [name_map[c] for c in ["workingMode", "mode"] if c in mode_cols]
+            fig_mode.update_yaxes(categoryorder="array", categoryarray=order)
+            fig_mode.update_layout(
+                xaxis=dict(range=[start_datetime, end_datetime], type="date", fixedrange=True),
+                height=160 + 40 * len(order),
+                margin=dict(l=0, r=0, t=60, b=0),
+                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0),
+            )
+            # repère vertical identique au graphe du haut
+            fig_mode.add_vline(x=repere_datetime, line_width=2, line_dash="dash", line_color="red")
+
+            st.plotly_chart(fig_mode, use_container_width=True)
 
 
 
