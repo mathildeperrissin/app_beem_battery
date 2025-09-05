@@ -542,7 +542,7 @@ fig.update_layout(
 )
 
 
-apply_common_time_axis(fig, start_datetime, end_datetime, hide_xticks=True)
+apply_common_time_axis(fig, start_datetime, end_datetime, hide_xticks=False)
 
 
 
@@ -619,7 +619,7 @@ else:
             height=380,
             legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0)
         )
-        apply_common_time_axis(fig_status, start_datetime, end_datetime, hide_xticks=True)
+        apply_common_time_axis(fig_status, start_datetime, end_datetime, hide_xticks=False)
 
 
 
@@ -686,9 +686,12 @@ else:
                 legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0)
             )
 
-            apply_common_time_axis(fig_mode, start_datetime, end_datetime, hide_xticks=True)
+            apply_common_time_axis(fig_mode, start_datetime, end_datetime, hide_xticks=False)
 
             fig_mode.add_vline(x=repere_datetime, line_width=2, line_dash="dash", line_color="red")
+            
+            fig_mode.update_yaxes(title_text="")   
+
             
             st.plotly_chart(fig_mode, use_container_width=True)
 
@@ -768,7 +771,11 @@ else:
         showlegend=True,
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0)
     )
-    apply_common_time_axis(fig_logs, start_datetime, end_datetime, hide_xticks=False)  # ticks visibles en bas
+    apply_common_time_axis(fig_logs, start_datetime, end_datetime, hide_xticks=False) 
+    # bandes horizontales plus visibles pour les 2 lignes (fault / warning)
+    fig_logs.add_hline(y=1, line_width=6, line_color="rgba(255,255,255,0.25)")
+    fig_logs.add_hline(y=2, line_width=6, line_color="rgba(255,255,255,0.25)")
+
 
 
 
