@@ -13,6 +13,41 @@ client = bigquery.Client()
 st.set_page_config(page_title="BART - data explo", layout="wide")
 st.title("🔍 Data exploration")
 
+
+from zoneinfo import ZoneInfo  # si pas déjà importé
+
+# --- Réglages communs ---
+LOCAL_TZ = ZoneInfo("Europe/Paris")
+
+# marges identiques pour tous (ajuste si besoin)
+ALIGN_L, ALIGN_R, ALIGN_T, ALIGN_B = 90, 30, 60, 0
+
+def _choose_dtick(start_dt, end_dt):
+    delta = (end_dt - start_dt).total_seconds()
+    if delta <= 48*3600:     # <= 2 jours -> 1h
+        return 3600_000
+    if delta <= 7*24*3600:   # <= 7 jours -> 6h
+        return 6*3600_000
+    if delta <= 14*24*3600:  # <= 14 jours -> 12h
+        return 12*3600_000
+    return 24*3600_000       # sinon 1 jour
+
+def apply_common_time_axis(fig, start_dt, end_dt, *, hide_xticks=False):
+    """Applique la même échelle X + mêmes marges à une figure Plotly."""
+    fig.update_xaxes(
+        range=[start_dt, end_dt],
+        type="date",
+        tick0=start_dt,
+        dtick=_choose_dtick(start_dt, end_dt),
+        tickformat="%H:%M\n%b %d",
+        showgrid=True,
+        showticklabels=not hide_xticks
+    )
+    fig.update_yaxes(automargin=False, title_standoff=10)  # évite les marges auto variables
+    fig.update_layout(margin=dict(l=ALIGN_L, r=ALIGN_R, t=ALIGN_T, b=ALIGN_B))
+    return fig
+
+
 # ========== 📦 Charger infos batteries ==========
 @st.cache_data
 def load_infos():
@@ -496,37 +531,18 @@ max_y = st.number_input(
 
 fig.update_layout(
     title="Courbes combinées des mesures",
-    title_y=0.99,  # remonte le titre (valeur entre 0 et 1)
-    xaxis_title="Date",
+    title_y=0.99,
+    xaxis_title=None,        # on masque le titre X ici
     yaxis_title="Wh",
     legend_title="Type de mesure",
     height=600,
-    margin=dict(l=0, r=0, t=80, b=0),  # plus d’espace en haut
-    xaxis=dict(
-        range=[start_datetime, end_datetime],
-        type="date",
-        fixedrange=True
-    ),
-    yaxis=dict(
-        title="Wh",
-        range=[0, max_y]
-    ),
-    yaxis2=dict(
-        title="SOC (%)",
-        overlaying="y",
-        side="right",
-        range=[0, 100],
-        ticksuffix="%"   # optionnel, juste pour l’affichage
-    ),
-    legend=dict(
-        orientation="h",
-        yanchor="bottom",
-        y=1.02,
-        xanchor="left",
-        x=0
-    )
+    yaxis=dict(title="Wh", range=[0, max_y]),
+    yaxis2=dict(title="SOC (%)", overlaying="y", side="right", range=[0, 100], ticksuffix="%"),
+    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0)
 )
 
+
+apply_common_time_axis(fig, start_datetime, end_datetime, hide_xticks=True)
 
 
 
@@ -598,21 +614,14 @@ else:
 
         fig_status.update_layout(
             title="battery_status_entity",
-            xaxis=dict(
-                range=[start_datetime, end_datetime],
-                type="date",
-                fixedrange=True
-            ),
             yaxis=yaxis_left,
             yaxis2=yaxis_right,
             height=380,
-            margin=dict(l=0, r=0, t=60, b=0),
-            legend=dict(
-                orientation="h",
-                yanchor="bottom", y=1.02,
-                xanchor="left", x=0
-            )
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0)
         )
+        apply_common_time_axis(fig_status, start_datetime, end_datetime, hide_xticks=True)
+
+
 
         st.plotly_chart(fig_status, use_container_width=True)
 
@@ -671,13 +680,16 @@ else:
             # ordre stable
             desired = [name_map[c] for c in ["workingMode", "mode"] if c in selected_tracks]
             fig_mode.update_yaxes(categoryorder="array", categoryarray=desired)
+            
             fig_mode.update_layout(
-                xaxis=dict(range=[start_datetime, end_datetime], type="date", fixedrange=True),
                 height=160 + 40 * len(desired),
-                margin=dict(l=0, r=0, t=60, b=0),
-                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0),
+                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0)
             )
+
+            apply_common_time_axis(fig_mode, start_datetime, end_datetime, hide_xticks=True)
+
             fig_mode.add_vline(x=repere_datetime, line_width=2, line_dash="dash", line_color="red")
+            
             st.plotly_chart(fig_mode, use_container_width=True)
 
 
@@ -698,7 +710,7 @@ def load_logs_all(device_id):
           AND type IN ('fault', 'warning')
     """
     df = client.query(query).to_dataframe()
-    df["date"] = pd.to_datetime(df["date"], utc=True)
+    df["date"] = pd.to_datetime(df["date"], utc=True).dt.tz_convert(LOCAL_TZ).dt.tz_localize(None)
     return df.sort_values("date", ascending=False)
 
 
@@ -711,10 +723,11 @@ df_logs_all = load_logs_all(selected_device)
 
 # Appliquer les mêmes filtres temporels + types sélectionnés (on met tout par défaut ici)
 df_logs_chart = df_logs_all.copy()
-df_logs_chart = df_logs_chart[
-    (df_logs_chart["date"] >= pd.to_datetime(start_str).tz_localize("UTC")) &
-    (df_logs_chart["date"] <= pd.to_datetime(end_str).tz_localize("UTC"))
-]
+df_logs_chart = df_logs_all[
+    (df_logs_all["date"] >= start_datetime) &
+    (df_logs_all["date"] <= end_datetime)
+].copy()
+
 
 
 
@@ -750,27 +763,14 @@ else:
 
     fig_logs.update_layout(
         title="Logs 'fault' / 'warning' (barres verticales)",
-        xaxis_title="Date",
-        yaxis=dict(
-            title="Type",
-            tickvals=[1, 2],
-            ticktext=["fault", "warning"],
-            range=[0.5, 2.5]
-        ),
+        yaxis=dict(title="Type", tickvals=[1, 2], ticktext=["fault", "warning"], range=[0.5, 2.5]),
         height=300,
-        xaxis=dict(
-            range=[start_datetime, end_datetime],
-            type="date"
-        ),
         showlegend=True,
-        legend=dict(
-        orientation="h",
-        yanchor="bottom",
-        y=1.02,
-        xanchor="left",
-        x=0
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0)
     )
-    )
+    apply_common_time_axis(fig_logs, start_datetime, end_datetime, hide_xticks=False)  # ticks visibles en bas
+
+
 
     st.plotly_chart(fig_logs, use_container_width=True)
 
