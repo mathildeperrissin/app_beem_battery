@@ -193,19 +193,47 @@ sources = {
 
 @st.cache_data
 def load_data(table_name, device_id, start_dt, end_dt):
-    # Si device_id est une chaîne qui contient un entier, on le cast en int
+    """
+    Charge une table mongodb en détectant automatiquement la colonne id (deviceId/batteryId/...)
+    et en filtrant sur la période en TIMESTAMP (compatible TIMESTAMP & DATETIME).
+    """
     if isinstance(device_id, str) and device_id.isdigit():
         device_id = int(device_id)
 
+    full_table = f"beem-data-warehouse.mongodb.{table_name}"
+    table = client.get_table(full_table)
+    cols = {f.name: f.field_type for f in table.schema}
+
+    # 1) Colonne d'identifiant (ordres de préférence)
+    id_col = next((c for c in ["deviceId", "batteryId", "device_id", "battery_id"] if c in cols), None)
+    if id_col is None:
+        raise ValueError(f"Aucune colonne id reconnue dans {full_table} (attendu deviceId/batteryId/...).")
+
+    # 2) Colonne de date
+    date_col = "date" if "date" in cols else ("timestamp" if "timestamp" in cols else None)
+    if date_col is None:
+        raise ValueError(f"Aucune colonne de date reconnue dans {full_table} (attendu date/timestamp).")
+
+    # 3) Build requête (filtre en TIMESTAMP pour éviter les soucis DATETIME)
     query = f"""
         SELECT *
-        FROM `beem-data-warehouse.mongodb.{table_name}`
-        WHERE deviceId = {device_id}
-          AND DATETIME(date) BETWEEN DATETIME('{start_dt}') AND DATETIME('{end_dt}')
+        FROM `{full_table}`
+        WHERE {id_col} = {device_id}
+          AND TIMESTAMP({date_col}) BETWEEN TIMESTAMP('{start_dt}') AND TIMESTAMP('{end_dt}')
     """
+
     df = client.query(query).to_dataframe()
-    df["date"] = pd.to_datetime(df["date"])
+
+    # Normalise la colonne date pour l'affichage Plotly (naive)
+    if not df.empty and date_col in df.columns:
+        df["date"] = pd.to_datetime(df[date_col], utc=True).dt.tz_localize(None)
+
+    # Valeur : cast en numérique au besoin
+    if "value" in df.columns and df["value"].dtype == "object":
+        df["value"] = pd.to_numeric(df["value"], errors="coerce")
+
     return df
+
 
 # ========= 🔋 Loader SOC (battery_status_entity) =========
 @st.cache_data
@@ -223,7 +251,7 @@ def load_soc(device_id, start_dt, end_dt):
         ORDER BY date
     """
     df = client.query(query).to_dataframe()
-    df["date"] = pd.to_datetime(df["date"])
+    df["date"] = pd.to_datetime(df["date"], utc=True).dt.tz_localize(None)
     return df
 
 # ========= 🔋 battery_status_entity : colonnes & loader =========
@@ -258,7 +286,7 @@ def load_status_entity(device_id, start_dt, end_dt, columns):
     """
     df = client.query(query).to_dataframe()
     if not df.empty and "date" in df.columns:
-        df["date"] = pd.to_datetime(df["date"])
+        df["date"] = pd.to_datetime(df["date"], utc=True).dt.tz_localize(None)
     return df
 
 # ========= 🧭 Mapping + loaders frise modes =========
@@ -404,8 +432,11 @@ for table_name in selected_sources:
         st.warning(f"Aucune donnée pour : {meta['title']}")
         continue
 
-    if meta["agg"] and "device_sub_id" in df.columns:
-        df = df.groupby(["date", "device_id"], as_index=False)["value"].sum()
+    # 🔧 Si la source est "somme MPPT", on agrège par date
+    if meta["agg"]:
+        # on tolère plusieurs noms possibles de sous-voie selon V1/V2
+        if any(c in df.columns for c in ["deviceSubId", "device_sub_id", "mppt", "mpptId"]):
+            df = df.groupby("date", as_index=False)["value"].sum()
 
     df = df.sort_values("date")
     fig.add_trace(go.Scatter(
@@ -414,6 +445,7 @@ for table_name in selected_sources:
         mode="lines",
         name=meta["title"]
     ))
+
 
 # ----- Trace SOC sur axe Y droit -----
 if show_soc:
