@@ -270,37 +270,20 @@ def load_data(table_name, device_id, start_dt, end_dt):
     return df
 
 
-# ========= 🔋 Loader SOC (battery_status_entity) =========
-@st.cache_data
-def load_soc(device_id, start_dt, end_dt):
-    # device_id peut venir en str => on cast en int si besoin
-    if isinstance(device_id, str) and device_id.isdigit():
-        device_id = int(device_id)
 
-    query = f"""
-        SELECT date, soc
-        FROM `beem-data-warehouse.mongodb.battery_status_entity`
-        WHERE batteryId = {device_id}
-          AND TIMESTAMP(date) BETWEEN TIMESTAMP('{start_dt}') AND TIMESTAMP('{end_dt}')
-          AND soc IS NOT NULL
-        ORDER BY date
-    """
-    df = client.query(query).to_dataframe()
-    df["date"] = pd.to_datetime(df["date"], utc=True).dt.tz_localize(None)
-    return df
 
 # ========= 🔋 battery_status_entity : colonnes & loader =========
 @st.cache_data
 def get_status_numeric_cols():
-    """Récupère les colonnes numériques de la table battery_status_entity (hors batteryId / date)."""
+    """Colonnes numériques de battery_status_entity pour le graphe 'Mesures',
+    en excluant batteryId/date + workingMode/mode (affichés dans la frise)."""
     table = client.get_table("beem-data-warehouse.mongodb.battery_status_entity")
     numeric_types = {"INTEGER", "INT64", "FLOAT", "FLOAT64", "NUMERIC", "BIGNUMERIC"}
-    cols = [
-        f.name for f in table.schema
-        if f.field_type in numeric_types and f.name not in ("batteryId", "date")
-    ]
+    exclude = {"batteryId", "date", "workingMode", "mode", "numberOfCycles", "numberOfModules"}  # <- exclues du graphe
+    cols = [f.name for f in table.schema if f.field_type in numeric_types and f.name not in exclude]
     cols.sort()
     return cols
+
 
 @st.cache_data
 def load_status_entity(device_id, start_dt, end_dt, columns):
@@ -455,8 +438,7 @@ selected_sources = st.multiselect(
 
 fig = go.Figure()
 
-# Option pour afficher / masquer le SOC (%)
-show_soc = st.toggle("Afficher le SOC (%)", value=True)
+
 
 
 for table_name in selected_sources:
@@ -482,20 +464,7 @@ for table_name in selected_sources:
     ))
 
 
-# ----- Trace SOC sur axe Y droit -----
-if show_soc:
-    df_soc = load_soc(selected_device, start_str, end_str)
-    if df_soc.empty:
-        st.warning("Aucun SOC sur la période.")
-    else:
-        df_soc = df_soc.sort_values("date")
-        fig.add_trace(go.Scatter(
-            x=df_soc["date"],
-            y=df_soc["soc"],
-            mode="lines",
-            name="SOC (%)",
-            yaxis="y2"  # utilise l'axe droit
-        ))
+
 
     
 # Ajout de la ligne verticale du repère
@@ -552,6 +521,56 @@ st.plotly_chart(fig, use_container_width=True)
 # ========== 🔋 Courbes battery_status_entity (2 axes Y) ==========
 st.subheader("🔋 Mesures battery_status_entity")
 
+# ================== Unités des colonnes battery_status_entity ==================
+UNITS = {
+    "batteryPower": "W",
+    "solarPower": "W",
+    "meterPower": "W",
+    "activePower": "W",
+    "backupPower": "W",
+    "maxPower": "W",
+
+    "soc": "%",  # échelle 0–100 + suffixe %
+
+    "totalEnergyExported": "kWh",
+    "totalEnergyImported": "kWh",
+    "totalChargedEnergy": "kWh",
+    "totalDischargedEnergy": "kWh",
+    "capacityInKwh": "kWh",
+
+    "globalSoh": "%",
+
+    "wifiRssi": "dBm",
+    "ambiantTemperature": "°C",   # selon le nom présent dans ta table
+    "ambientTemperature": "°C",   # (garde celui qui existe)
+    "invTemperature": "°C",
+
+    "gridVoltage": "V",
+    "EPSVoltage": "V",
+}
+
+def unit_of(col: str) -> str:
+    return UNITS.get(col, "")
+
+def label_bracket(col: str) -> str:
+    """Texte pour menus/legend: 'batteryPower [W]'."""
+    u = unit_of(col)
+    return f"{col} [{u}]" if u else col
+
+def axis_title(col: str) -> str:
+    """Texte pour titre d'axe: 'batteryPower (W)'."""
+    u = unit_of(col)
+    return f"{col} ({u})" if u else col
+
+def hover_tpl(col: str) -> str:
+    """Hover avec unité si dispo."""
+    u = unit_of(col)
+    if u:
+        return f"%{{y:.2f}} {u}<br>%{{x|%Y-%m-%d %H:%M}}<extra>{col}</extra>"
+    else:
+        return f"%{{y:.2f}}<br>%{{x|%Y-%m-%d %H:%M}}<extra>{col}</extra>"
+
+
 available_status_cols = get_status_numeric_cols()
 if len(available_status_cols) < 2:
     st.info("Pas assez de colonnes numériques dans battery_status_entity pour tracer deux courbes.")
@@ -562,10 +581,10 @@ else:
             "Axe Y gauche",
             options=available_status_cols,
             index=(available_status_cols.index("batteryPower") if "batteryPower" in available_status_cols else 0),
-            key="bse_y_left"
+            key="bse_y_left",
+            format_func=label_bracket
         )
     with c2:
-        # par défaut: SOC à droite si dispo
         default_right_idx = (
             available_status_cols.index("soc") if "soc" in available_status_cols
             else (1 if len(available_status_cols) > 1 else 0)
@@ -574,8 +593,10 @@ else:
             "Axe Y droite",
             options=available_status_cols,
             index=default_right_idx,
-            key="bse_y_right"
+            key="bse_y_right",
+            format_func=label_bracket
         )
+
 
     df_status = load_status_entity(selected_device, start_str, end_str, [y_left_col, y_right_col])
 
@@ -584,28 +605,32 @@ else:
     else:
         fig_status = go.Figure()
 
-        # Trace gauche
+        # Noms + hover avec unités
         fig_status.add_trace(go.Scatter(
             x=df_status["date"],
             y=df_status[y_left_col],
             mode="lines",
-            name=y_left_col,
-            yaxis="y"
+            name=label_bracket(y_left_col),
+            yaxis="y",
+            hovertemplate=hover_tpl(y_left_col)
         ))
 
-        # Trace droite (si différente)
         if y_right_col != y_left_col and y_right_col in df_status.columns:
             fig_status.add_trace(go.Scatter(
                 x=df_status["date"],
                 y=df_status[y_right_col],
                 mode="lines",
-                name=y_right_col,
-                yaxis="y2"
+                name=label_bracket(y_right_col),
+                yaxis="y2",
+                hovertemplate=hover_tpl(y_right_col)
             ))
 
-        # Axes dynamiques + formatage SOC en %
-        yaxis_left = dict(title=y_left_col)
-        yaxis_right = dict(title=y_right_col, overlaying="y", side="right")
+        # Titres d'axes avec unités (+ gestion SOC)
+        left_title  = "SOC (%)" if y_left_col  == "soc" else axis_title(y_left_col)
+        right_title = "SOC (%)" if y_right_col == "soc" else axis_title(y_right_col)
+
+        yaxis_left  = dict(title=left_title)
+        yaxis_right = dict(title=right_title, overlaying="y", side="right")
 
         if y_left_col == "soc":
             yaxis_left.update(range=[0, 100], ticksuffix="%")
@@ -619,11 +644,12 @@ else:
             height=380,
             legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0)
         )
+
+        # même axe temps partout
         apply_common_time_axis(fig_status, start_datetime, end_datetime, hide_xticks=False)
 
-
-
         st.plotly_chart(fig_status, use_container_width=True)
+
 
 
 
@@ -677,23 +703,34 @@ else:
                 title="Frise temporelle des modes"
             )
 
-            # ordre stable
-            desired = [name_map[c] for c in ["workingMode", "mode"] if c in selected_tracks]
-            fig_mode.update_yaxes(categoryorder="array", categoryarray=desired)
-            
-            fig_mode.update_layout(
-                height=160 + 40 * len(desired),
-                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0)
-            )
+# ordre stable
+desired = [name_map[c] for c in ["workingMode", "mode"] if c in selected_tracks]
 
-            apply_common_time_axis(fig_mode, start_datetime, end_datetime, hide_xticks=False)
+# Forcer des labels Y custom : "Working mode" -> "Working<br>mode"
+tickvals = desired
+ticktext = [t.replace("Working mode", "Working<br>mode", 1) for t in tickvals]
 
-            fig_mode.add_vline(x=repere_datetime, line_width=2, line_dash="dash", line_color="red")
-            
-            fig_mode.update_yaxes(title_text="")   
+# Axe Y: ordre + labels sur 2 lignes + pas de titre
+fig_mode.update_yaxes(
+    categoryorder="array",
+    categoryarray=desired,
+    tickmode="array",
+    tickvals=tickvals,
+    ticktext=ticktext,
+    title_text="",
+    automargin=True      # laisse de la marge pour 2 lignes
+)
 
-            
-            st.plotly_chart(fig_mode, use_container_width=True)
+fig_mode.update_layout(
+    height=160 + 40 * len(desired),
+    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0)
+)
+
+apply_common_time_axis(fig_mode, start_datetime, end_datetime, hide_xticks=False)
+fig_mode.add_vline(x=repere_datetime, line_width=2, line_dash="dash", line_color="red")
+
+st.plotly_chart(fig_mode, use_container_width=True)
+
 
 
 
