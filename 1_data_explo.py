@@ -296,11 +296,11 @@ def get_mode_cols():
 
 @st.cache_data
 def load_modes_entity(device_id, start_dt, end_dt, cols):
-    """Charge date + colonnes de mode pour la batterie et la période données."""
     if isinstance(device_id, str) and device_id.isdigit():
         device_id = int(device_id)
     if not cols:
         return pd.DataFrame(columns=["date"])
+
     select_cols = ", ".join(["date"] + cols)
     query = f"""
         SELECT {select_cols}
@@ -311,23 +311,28 @@ def load_modes_entity(device_id, start_dt, end_dt, cols):
     """
     df = client.query(query).to_dataframe()
     if not df.empty:
-        df["date"] = pd.to_datetime(df["date"])
+        # => datetimes *naive* (on enlève le fuseau)
+        df["date"] = pd.to_datetime(df["date"], utc=True).dt.tz_localize(None)
     return df
 
+
 def _compress_to_segments(df, col, end_dt):
-    """
-    Transforme une série discrète en segments [start, end) pour la frise.
-    end du dernier segment = end_dt.
-    """
-    s = df[["date", col]].dropna().sort_values("date")
+    s = df[["date", col]].dropna().sort_values("date").copy()
     if s.empty:
         return pd.DataFrame(columns=["start", "end", "track", "value", "label"])
 
-    # nouvelle "run" à chaque changement de valeur
+    # Sécurise : tout en naive
+    s["date"] = pd.to_datetime(s["date"], utc=True).dt.tz_localize(None)
+    try:
+        end_naive = pd.Timestamp(end_dt).tz_localize(None)
+    except TypeError:
+        end_naive = pd.Timestamp(end_dt)
+
+    # Nouvelle "run" à chaque changement de valeur
     run_id = (s[col] != s[col].shift()).cumsum()
     segs = s.groupby(run_id).agg(start=("date", "first"), value=(col, "last")).reset_index(drop=True)
     segs["end"] = segs["start"].shift(-1)
-    segs.loc[segs["end"].isna(), "end"] = end_dt
+    segs.loc[segs["end"].isna(), "end"] = end_naive
     segs["track"] = col
 
     def map_label(track, v):
@@ -340,6 +345,7 @@ def _compress_to_segments(df, col, end_dt):
     segs["label"] = [map_label(col, v) for v in segs["value"]]
     segs = segs[segs["end"] > segs["start"]]
     return segs[["start", "end", "track", "value", "label"]]
+
 
 #########################"GROS GRAPH combiné"""""########################
 
