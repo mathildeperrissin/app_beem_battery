@@ -262,8 +262,9 @@ def load_status_entity(device_id, start_dt, end_dt, columns):
     return df
 
 # ========= 🧭 Mapping + loaders frise modes =========
-# v1 : workingMode
-WORKING_MODE_LABELS = {
+# ========= 🧭 Mappings V1/V2 =========
+# V1 -> workingMode
+WORKING_MODE_V1 = {
     0: "Idle",
     1: "PV Check",
     2: "Standby",
@@ -276,8 +277,22 @@ WORKING_MODE_LABELS = {
     9: "Fault",
 }
 
-# v2 : mode
-MODE_LABELS = {
+# V2 -> workingMode (détails officiels)
+WORKING_MODE_V2 = {
+    0: "cPowerOnMode",
+    1: "cWaitMode",
+    2: "cBusCheckMode",
+    3: "cPreCheckMode",
+    4: "cRdyOnGridMode",
+    5: "cNormalMode",
+    6: "cFaultMode",
+    7: "Rsv",
+    8: "cFlashMode",
+    9: "cShutdownMode",
+}
+
+# V2 -> mode
+MODE_V2 = {
     0: "smart",
     1: "backup",
     2: "economic",
@@ -286,16 +301,42 @@ MODE_LABELS = {
     5: "hybrid_economic",
 }
 
+def detect_generation(hardware_version: str) -> str:
+    """Retourne 'v2' si la version le suggère, sinon 'v1'."""
+    hv = (str(hardware_version) if hardware_version is not None else "").lower()
+    if "v2" in hv or "ampace_v2" in hv or "gen2" in hv:
+        return "v2"
+    return "v1"
+
+def label_func_factory(track: str, gen: str):
+    """Retourne une fonction qui mappe la valeur -> label selon la piste et la génération."""
+    if track == "mode":
+        mapping = MODE_V2
+    else:  # workingMode
+        mapping = WORKING_MODE_V2 if gen == "v2" else WORKING_MODE_V1
+
+    def _lab(v):
+        try:
+            return mapping.get(int(v), str(v))
+        except Exception:
+            return mapping.get(v, str(v))
+    return _lab
+
 @st.cache_data
-def get_mode_cols():
-    """Renvoie les colonnes de mode présentes dans battery_status_entity."""
+def get_mode_cols(gen: str):
+    """Colonnes présentes et pertinentes selon la génération."""
     table = client.get_table("beem-data-warehouse.mongodb.battery_status_entity")
     present = {f.name for f in table.schema}
-    # on garde l'ordre stable : workingMode (v1) puis mode (v2) si présents
-    return [c for c in ["workingMode", "mode"] if c in present]
+    cols = []
+    if "workingMode" in present:
+        cols.append("workingMode")
+    if gen == "v2" and "mode" in present:
+        cols.append("mode")
+    return cols
 
 @st.cache_data
 def load_modes_entity(device_id, start_dt, end_dt, cols):
+    """Charge date + colonnes de mode demandées (datetimes naïves)."""
     if isinstance(device_id, str) and device_id.isdigit():
         device_id = int(device_id)
     if not cols:
@@ -311,40 +352,31 @@ def load_modes_entity(device_id, start_dt, end_dt, cols):
     """
     df = client.query(query).to_dataframe()
     if not df.empty:
-        # => datetimes *naive* (on enlève le fuseau)
         df["date"] = pd.to_datetime(df["date"], utc=True).dt.tz_localize(None)
     return df
 
-
-def _compress_to_segments(df, col, end_dt):
+def _compress_to_segments(df, col, end_dt, label_func):
+    """
+    Transforme une série discrète (col) en segments [start, end).
+    """
     s = df[["date", col]].dropna().sort_values("date").copy()
     if s.empty:
-        return pd.DataFrame(columns=["start", "end", "track", "value", "label"])
+        return pd.DataFrame(columns=["start", "end", "track", "label"])
 
-    # Sécurise : tout en naive
     s["date"] = pd.to_datetime(s["date"], utc=True).dt.tz_localize(None)
-    try:
-        end_naive = pd.Timestamp(end_dt).tz_localize(None)
-    except TypeError:
-        end_naive = pd.Timestamp(end_dt)
+    end_naive = pd.Timestamp(end_dt)
+    if end_naive.tzinfo:
+        end_naive = end_naive.tz_localize(None)
 
-    # Nouvelle "run" à chaque changement de valeur
     run_id = (s[col] != s[col].shift()).cumsum()
     segs = s.groupby(run_id).agg(start=("date", "first"), value=(col, "last")).reset_index(drop=True)
     segs["end"] = segs["start"].shift(-1)
     segs.loc[segs["end"].isna(), "end"] = end_naive
     segs["track"] = col
-
-    def map_label(track, v):
-        mapping = WORKING_MODE_LABELS if track == "workingMode" else MODE_LABELS
-        try:
-            return mapping.get(int(v), str(v))
-        except Exception:
-            return mapping.get(v, str(v))
-
-    segs["label"] = [map_label(col, v) for v in segs["value"]]
+    segs["label"] = [label_func(v) for v in segs["value"]]
     segs = segs[segs["end"] > segs["start"]]
-    return segs[["start", "end", "track", "value", "label"]]
+    return segs[["start", "end", "track", "label"]]
+
 
 
 #########################"GROS GRAPH combiné"""""########################
@@ -553,36 +585,46 @@ else:
         st.plotly_chart(fig_status, use_container_width=True)
 
 
-# ========== 🧭 Frise temporelle des modes (V1/V2) ==========
-st.subheader("🧭 Frise temporelle : workingMode (v1) / mode (v2)")
 
-mode_cols = get_mode_cols()
-if not mode_cols:
-    st.info("Aucune colonne 'workingMode' ou 'mode' trouvée dans battery_status_entity.")
+
+# ========== 🧭 Frise temporelle des modes ==========
+st.subheader("🧭 Frise temporelle des modes")
+
+# Détecte génération à partir des infos device sélectionné
+hw_version = device_info["hardware_version"].values[0] if "hardware_version" in device_info.columns else None
+gen = detect_generation(hw_version)
+
+tracks_available = get_mode_cols(gen)
+if not tracks_available:
+    st.info("Aucune colonne de mode disponible (workingMode/mode).")
 else:
+    # par défaut : toutes les pistes pertinentes (V1: workingMode ; V2: workingMode + mode)
     selected_tracks = st.multiselect(
         "Pistes à afficher",
-        options=mode_cols,
-        default=mode_cols,
-        help="Affiche workingMode (v1) et/ou mode (v2) sous forme de frise."
+        options=tracks_available,
+        default=tracks_available,
+        help="V1 : workingMode. V2 : workingMode + mode."
     )
 
     df_modes = load_modes_entity(selected_device, start_str, end_str, selected_tracks)
 
-    if df_modes.empty:
+    if df_modes.empty or not selected_tracks:
         st.info("Aucune donnée de mode sur cette période.")
     else:
-        segs = (
-            pd.concat([_compress_to_segments(df_modes, c, end_datetime) for c in selected_tracks],
-                      ignore_index=True)
-            if selected_tracks else pd.DataFrame()
-        )
+        segs_all = []
+        for col in selected_tracks:
+            labf = label_func_factory(col, gen)
+            segs_all.append(_compress_to_segments(df_modes, col, end_datetime, labf))
+        segs = pd.concat(segs_all, ignore_index=True) if segs_all else pd.DataFrame()
 
         if segs.empty:
-            st.info("Pas de segments exploitables pour les modes.")
+            st.info("Pas de segments exploitables.")
         else:
-            # libellés des pistes
-            name_map = {"workingMode": "Working mode (v1)", "mode": "Mode (v2)"}
+            # Libellés lisibles pour les pistes
+            name_map = {
+                "workingMode": f"Working mode ({gen})",
+                "mode": "Mode (v2)"
+            }
             segs["track"] = segs["track"].map(name_map).fillna(segs["track"])
 
             fig_mode = px.timeline(
@@ -590,30 +632,21 @@ else:
                 x_start="start", x_end="end",
                 y="track",
                 color="label",
-                hover_data={
-                    "label": True,
-                    "value": True,
-                    "start": "|%Y-%m-%d %H:%M",
-                    "end": "|%Y-%m-%d %H:%M",
-                    "track": False,
-                },
+                hover_data={"start": "|%Y-%m-%d %H:%M", "end": "|%Y-%m-%d %H:%M", "track": False},
                 title="Frise temporelle des modes"
             )
 
-            # ordre stable + même fenêtre de temps
-            order = [name_map[c] for c in ["workingMode", "mode"] if c in mode_cols]
-            fig_mode.update_yaxes(categoryorder="array", categoryarray=order)
+            # ordre stable
+            desired = [name_map[c] for c in ["workingMode", "mode"] if c in selected_tracks]
+            fig_mode.update_yaxes(categoryorder="array", categoryarray=desired)
             fig_mode.update_layout(
                 xaxis=dict(range=[start_datetime, end_datetime], type="date", fixedrange=True),
-                height=160 + 40 * len(order),
+                height=160 + 40 * len(desired),
                 margin=dict(l=0, r=0, t=60, b=0),
                 legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0),
             )
-            # repère vertical identique au graphe du haut
             fig_mode.add_vline(x=repere_datetime, line_width=2, line_dash="dash", line_color="red")
-
             st.plotly_chart(fig_mode, use_container_width=True)
-
 
 
 
