@@ -13,7 +13,8 @@ client = bigquery.Client()
 # ============================
 
 @st.cache_data
-def load_new_systems_last_24h():
+def load_recent_creations_3d():
+    # Créations sur les 3 derniers jours, avec statut de pairing
     query = """
     WITH base AS (
       SELECT
@@ -30,7 +31,7 @@ def load_new_systems_last_24h():
       WHERE d.deleted_at IS NULL
         AND d.replaced_by_id IS NULL
         AND u.id NOT IN (22, 4395)
-        AND d.created_at >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 24 HOUR)
+        AND d.created_at >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 72 HOUR)
     )
     SELECT
       serial_number,
@@ -45,6 +46,30 @@ def load_new_systems_last_24h():
       END AS pairing_status_hint
     FROM base
     ORDER BY created_at DESC
+    """
+    return client.query(query).to_dataframe()
+
+
+@st.cache_data
+def load_unpaired_all_time():
+    # Tous les systèmes dont le pairing n'est pas terminé (warranty_status = 'pending'), sans limite de date
+    query = """
+    SELECT
+      d.serial_number,
+      d.created_at,
+      u.firstname,
+      u.lastname,
+      u.email,
+      d.warranty_status
+    FROM `beem-data-warehouse.airbyte_postgresql.battery_device` d
+    INNER JOIN `beem-data-warehouse.airbyte_postgresql.house` h ON h.id = d.house_id
+    INNER JOIN `beem-data-warehouse.airbyte_postgresql.house_user` hu ON hu.house_id = h.id AND hu.mode = 'W'
+    INNER JOIN `beem-data-warehouse.airbyte_postgresql.user` u ON u.id = hu.user_id
+    WHERE d.deleted_at IS NULL
+      AND d.replaced_by_id IS NULL
+      AND u.id NOT IN (22, 4395)
+      AND LOWER(COALESCE(d.warranty_status, '')) = 'pending'
+    ORDER BY d.created_at DESC
     """
     return client.query(query).to_dataframe()
 
@@ -69,9 +94,12 @@ def load_disconnected_batteries():
       AND u.id NOT IN (22, 4395)
       AND bld.last_known_measure_date IS NOT NULL
       AND bld.last_known_measure_date < TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 24 HOUR)
+      AND NOT REGEXP_CONTAINS(LOWER(u.email), r'@beemenergy\.(com|fr)$')
     ORDER BY bld.last_known_measure_date ASC
     """
     return client.query(query).to_dataframe()
+
+
 
 
 @st.cache_data
@@ -158,30 +186,50 @@ def load_active_issues():
     return client.query(query).to_dataframe()
 
 # ============================
-# UI (3 tableaux empilés)
+# UI (4 tableaux empilés)
 # ============================
 
-# 1) New systems <24h
-st.header("🆕 New systems in last 24h (+ warranty/pairing)")
-new_sys_df = load_new_systems_last_24h()
-if new_sys_df.empty:
-    st.info("Aucun nouveau système sur les dernières 24h.")
+# A) Créations récentes (3 jours)
+st.header("🆕 Newly created systems (last 3 days) — pairing status")
+recent_df = load_recent_creations_3d()
+if recent_df.empty:
+    st.info("Aucune création sur les 3 derniers jours.")
 else:
-    st.caption(f"{len(new_sys_df)} lignes")
-    st.dataframe(new_sys_df[[
+    st.caption(f"{len(recent_df)} lignes")
+    st.dataframe(recent_df[[
         "serial_number", "firstname", "lastname", "email",
         "created_at", "warranty_status", "pairing_status_hint"
     ]])
     st.download_button(
-        "📥 Export CSV (new systems)",
-        data=new_sys_df.to_csv(index=False).encode("utf-8"),
-        file_name="new_systems_last_24h.csv",
+        "📥 Export CSV (recent creations 3d)",
+        data=recent_df.to_csv(index=False).encode("utf-8"),
+        file_name="recent_creations_3d.csv",
         mime="text/csv"
     )
 
 st.divider()
 
-# 2) Disconnected >24h
+# B) Tous les systèmes non appairés (peu importe la date)
+st.header("⏳ Systems with pairing pending (all-time)")
+unpaired_df = load_unpaired_all_time()
+if unpaired_df.empty:
+    st.success("Aucun système en 'pending' ✅")
+else:
+    st.caption(f"{len(unpaired_df)} lignes")
+    st.dataframe(unpaired_df[[
+        "serial_number", "firstname", "lastname", "email",
+        "created_at", "warranty_status"
+    ]])
+    st.download_button(
+        "📥 Export CSV (unpaired all-time)",
+        data=unpaired_df.to_csv(index=False).encode("utf-8"),
+        file_name="unpaired_all_time.csv",
+        mime="text/csv"
+    )
+
+st.divider()
+
+# C) Déconnectées >24h
 st.header("🔌 Batteries disconnected (>24h since last connection)")
 disc_df = load_disconnected_batteries()
 if disc_df.empty:
@@ -201,7 +249,7 @@ else:
 
 st.divider()
 
-# 3) Active issues
+# D) Issues actives
 st.header("🚧 Active issues (faults not cleared, standby/offgrid, 'No grid input')")
 issues_df = load_active_issues()
 if issues_df.empty:
@@ -218,4 +266,3 @@ else:
         file_name="active_issues.csv",
         mime="text/csv"
     )
-
