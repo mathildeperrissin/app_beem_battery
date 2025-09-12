@@ -343,8 +343,9 @@ MODE_V2 = {
     1: "backup",
     2: "economic",
     3: "off_grid",
-    4: "hybrid",
-    5: "hybrid_economic",
+    4: "reserved",
+    5: "hybrid",
+    6: "hybrid_economic"
 }
 
 def detect_generation(hardware_version: str) -> str:
@@ -636,6 +637,45 @@ else:
             yaxis_left.update(range=[0, 100], ticksuffix="%")
         if y_right_col == "soc":
             yaxis_right.update(range=[0, 100], ticksuffix="%")
+            
+            
+        def _aligned_zero_ranges(y1, y2, pad_ratio=0.02):
+            """
+            Calcule deux ranges [min,max] pour yaxis et yaxis2 avec le 0 aligné,
+            quelle que soit l'unité. Couvre les données des deux séries.
+            """
+            import numpy as np
+            import pandas as pd
+
+            def extents(s):
+                s = pd.Series(s).dropna()
+                if s.empty:
+                    return 0.0, 0.0
+                return max(0.0, s.max()), max(0.0, -s.min())  # (positif, négatif)
+
+            pos1, neg1 = extents(y1)
+            pos2, neg2 = extents(y2)
+
+            def ratio(pos, neg):
+                if pos == 0 and neg == 0: return 0.5
+                if neg == 0: return 1.0
+                if pos == 0: return 0.0
+                return pos / (pos + neg)
+
+            r1, r2 = ratio(pos1, neg1), ratio(pos2, neg2)
+            f = float(np.clip((r1 + r2) / 2.0, 0.1, 0.9))
+
+            def make_range(pos, neg, f):
+                pos_ext = max(pos, (f / (1 - f)) * neg if f < 0.999 else pos)
+                neg_ext = max(neg, ((1 - f) / f) * pos if f > 0.001 else neg)
+                span = pos_ext + neg_ext
+                pad = pad_ratio * span
+                return [-neg_ext - pad, pos_ext + pad]
+
+            range1 = make_range(pos1, neg1, f)
+            range2 = make_range(pos2, neg2, f)
+            return range1, range2
+
 
         fig_status.update_layout(
             title="battery_status_entity",
