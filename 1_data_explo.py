@@ -5,6 +5,7 @@ from datetime import datetime
 import os
 from google.cloud import bigquery
 import plotly.graph_objects as go
+from zoneinfo import ZoneInfo  # si pas déjà importé
 
 # Authentification
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = r"C:\Users\floch\OneDrive\Documents\GCP_key\streamlit_app\beem-data-warehouse-14a923c674a0.json"
@@ -14,7 +15,7 @@ st.set_page_config(page_title="BART - data explo", layout="wide")
 st.title("🔍 Data exploration")
 
 
-from zoneinfo import ZoneInfo  # si pas déjà importé
+
 
 # --- Réglages communs ---
 LOCAL_TZ = ZoneInfo("Europe/Paris")
@@ -571,6 +572,43 @@ def hover_tpl(col: str) -> str:
     else:
         return f"%{{y:.2f}}<br>%{{x|%Y-%m-%d %H:%M}}<extra>{col}</extra>"
 
+def _aligned_zero_ranges(y1, y2, pad_ratio=0.02):
+    """
+    Retourne deux ranges [min, max] pour yaxis et yaxis2
+    avec le 0 à la même hauteur, quelles que soient les unités.
+    """
+    import numpy as np
+    import pandas as pd
+
+    def extents(series):
+        s = pd.Series(series).astype(float).dropna()
+        if s.empty:
+            return 0.0, 0.0  # pos, neg (magnitudes)
+        return max(0.0, s.max()), max(0.0, -s.min())
+
+    pos1, neg1 = extents(y1)
+    pos2, neg2 = extents(y2)
+
+    def ratio(pos, neg):
+        if pos == 0 and neg == 0: return 0.5
+        if neg == 0: return 1.0
+        if pos == 0: return 0.0
+        return pos / (pos + neg)
+
+    r1, r2 = ratio(pos1, neg1), ratio(pos2, neg2)
+    f = float(np.clip((r1 + r2) / 2.0, 0.1, 0.9))
+
+
+    def make_range(pos, neg, f):
+        # ajuste l'enveloppe pour que 0 tombe à f
+        pos_ext = max(pos, (f / (1 - f)) * neg if f < 0.999 else pos)
+        neg_ext = max(neg, ((1 - f) / f) * pos if f > 0.001 else neg)
+        span = pos_ext + neg_ext
+        pad = pad_ratio * (span if span > 0 else 1.0)
+        return [-neg_ext - pad, pos_ext + pad]
+
+    return make_range(pos1, neg1, f), make_range(pos2, neg2, f)
+
 
 available_status_cols = get_status_numeric_cols()
 if len(available_status_cols) < 2:
@@ -626,56 +664,36 @@ else:
                 hovertemplate=hover_tpl(y_right_col)
             ))
 
-        # Titres d'axes avec unités (+ gestion SOC)
+        # Titres d'axes (sans forcer SOC 0–100 : on veut aligner le 0 quoi qu'il arrive)
         left_title  = "SOC (%)" if y_left_col  == "soc" else axis_title(y_left_col)
         right_title = "SOC (%)" if y_right_col == "soc" else axis_title(y_right_col)
 
-        yaxis_left  = dict(title=left_title)
-        yaxis_right = dict(title=right_title, overlaying="y", side="right")
+        # Définition des axes
+        yaxis_left  = dict(title=left_title,  zeroline=True, zerolinewidth=1)
+        yaxis_right = dict(title=right_title, zeroline=True, zerolinewidth=1,
+                        overlaying="y", side="right")
 
-        if y_left_col == "soc":
-            yaxis_left.update(range=[0, 100], ticksuffix="%")
-        if y_right_col == "soc":
-            yaxis_right.update(range=[0, 100], ticksuffix="%")
-            
-            
-        def _aligned_zero_ranges(y1, y2, pad_ratio=0.02):
-            """
-            Calcule deux ranges [min,max] pour yaxis et yaxis2 avec le 0 aligné,
-            quelle que soit l'unité. Couvre les données des deux séries.
-            """
-            import numpy as np
-            import pandas as pd
+        # --- ALIGNEMENT DU ZÉRO QUELLES QUE SOIENT LES UNITÉS -----------------
+        if y_right_col in df_status.columns:
+            rng_left, rng_right = _aligned_zero_ranges(
+                df_status[y_left_col],
+                df_status[y_right_col]
+            )
+        else:
+            # si une seule série, on prend une plage simple autour de ses données
+            rng_left, rng_right = _aligned_zero_ranges(
+                df_status[y_left_col],
+                df_status[y_left_col]
+            )
 
-            def extents(s):
-                s = pd.Series(s).dropna()
-                if s.empty:
-                    return 0.0, 0.0
-                return max(0.0, s.max()), max(0.0, -s.min())  # (positif, négatif)
+        # Applique les ranges calculés
+        yaxis_left.update(range=rng_left)
+        yaxis_right.update(range=rng_right)
 
-            pos1, neg1 = extents(y1)
-            pos2, neg2 = extents(y2)
-
-            def ratio(pos, neg):
-                if pos == 0 and neg == 0: return 0.5
-                if neg == 0: return 1.0
-                if pos == 0: return 0.0
-                return pos / (pos + neg)
-
-            r1, r2 = ratio(pos1, neg1), ratio(pos2, neg2)
-            f = float(np.clip((r1 + r2) / 2.0, 0.1, 0.9))
-
-            def make_range(pos, neg, f):
-                pos_ext = max(pos, (f / (1 - f)) * neg if f < 0.999 else pos)
-                neg_ext = max(neg, ((1 - f) / f) * pos if f > 0.001 else neg)
-                span = pos_ext + neg_ext
-                pad = pad_ratio * span
-                return [-neg_ext - pad, pos_ext + pad]
-
-            range1 = make_range(pos1, neg1, f)
-            range2 = make_range(pos2, neg2, f)
-            return range1, range2
-
+        # IMPORTANT : pas de ticksuffix résiduel (évite le 0..300%)
+        yaxis_left.pop("ticksuffix", None)
+        yaxis_right.pop("ticksuffix", None)
+        # ----------------------------------------------------------------------
 
         fig_status.update_layout(
             title="battery_status_entity",
@@ -689,6 +707,7 @@ else:
         apply_common_time_axis(fig_status, start_datetime, end_datetime, hide_xticks=False)
 
         st.plotly_chart(fig_status, use_container_width=True)
+
 
 
 
@@ -743,28 +762,24 @@ else:
                 title="Frise temporelle des modes"
             )
 
-# ordre stable
-desired = [name_map[c] for c in ["workingMode", "mode"] if c in selected_tracks]
+if 'name_map' in locals():
+    desired = [name_map[c] for c in ["workingMode", "mode"] if c in selected_tracks]
+    tickvals = desired
+    ticktext = [t.replace("Working mode", "Working<br>mode", 1) for t in tickvals]
+    fig_mode.update_yaxes(
+        categoryorder="array",
+        categoryarray=desired,
+        tickmode="array",
+        tickvals=tickvals,
+        ticktext=ticktext,
+        title_text="",
+        automargin=True
+    )
+    fig_mode.update_layout(
+        height=160 + 40 * len(desired),
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0)
+    )
 
-# Forcer des labels Y custom : "Working mode" -> "Working<br>mode"
-tickvals = desired
-ticktext = [t.replace("Working mode", "Working<br>mode", 1) for t in tickvals]
-
-# Axe Y: ordre + labels sur 2 lignes + pas de titre
-fig_mode.update_yaxes(
-    categoryorder="array",
-    categoryarray=desired,
-    tickmode="array",
-    tickvals=tickvals,
-    ticktext=ticktext,
-    title_text="",
-    automargin=True      # laisse de la marge pour 2 lignes
-)
-
-fig_mode.update_layout(
-    height=160 + 40 * len(desired),
-    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0)
-)
 
 apply_common_time_axis(fig_mode, start_datetime, end_datetime, hide_xticks=False)
 fig_mode.add_vline(x=repere_datetime, line_width=2, line_dash="dash", line_color="red")
