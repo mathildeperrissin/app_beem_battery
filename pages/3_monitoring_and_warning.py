@@ -41,7 +41,8 @@ def load_recent_creations_3d():
       created_at,
       warranty_status,
       CASE
-        WHEN LOWER(COALESCE(warranty_status, '')) = 'pending' THEN '❗ Pending'
+        WHEN LOWER(TRIM(COALESCE(NULLIF(warranty_status, ''), 'pending'))) = 'pending'
+          THEN '❗ Pending'
         ELSE '✅ Completed'
       END AS pairing_status_hint
     FROM base
@@ -68,7 +69,10 @@ def load_unpaired_all_time():
     WHERE d.deleted_at IS NULL
       AND d.replaced_by_id IS NULL
       AND u.id NOT IN (22, 4395)
-      AND LOWER(COALESCE(d.warranty_status, '')) = 'pending'
+      AND (
+            LOWER(TRIM(d.warranty_status)) = 'pending'
+            OR NULLIF(TRIM(d.warranty_status), '') IS NULL
+          )
     ORDER BY d.created_at DESC
     """
     return client.query(query).to_dataframe()
@@ -210,7 +214,7 @@ else:
 st.divider()
 
 # B) Tous les systèmes non appairés (peu importe la date)
-st.header("⏳ Systems with pairing pending (all-time)")
+st.header("⏳ Systems with pairing pending or NULL (all-time)")
 unpaired_df = load_unpaired_all_time()
 if unpaired_df.empty:
     st.success("Aucun système en 'pending' ✅")
