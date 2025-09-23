@@ -308,6 +308,58 @@ def load_status_entity(device_id, start_dt, end_dt, columns):
         df["date"] = pd.to_datetime(df["date"], utc=True).dt.tz_localize(None)
     return df
 
+# ---------- dryStatus : loader + compression en segments ----------
+
+@st.cache_data
+def load_dry_status_entity(device_id, start_dt, end_dt):
+    """
+    Charge date + dryStatus (normalisé en 'On' / 'Off' / 'Null') pour V2.
+    """
+    if isinstance(device_id, str) and device_id.isdigit():
+        device_id = int(device_id)
+
+    query = f"""
+        SELECT
+          date,
+          CASE
+            WHEN dryStatus IS NULL THEN 'Null'
+            WHEN LOWER(CAST(dryStatus AS STRING)) IN ('on','true','1')  THEN 'On'
+            WHEN LOWER(CAST(dryStatus AS STRING)) IN ('off','false','0') THEN 'Off'
+            ELSE 'Null'
+          END AS dryStatus
+        FROM `beem-data-warehouse.mongodb.battery_status_entity`
+        WHERE batteryId = {device_id}
+          AND TIMESTAMP(date) BETWEEN TIMESTAMP('{start_dt}') AND TIMESTAMP('{end_dt}')
+        ORDER BY date
+    """
+    df = client.query(query).to_dataframe()
+    if not df.empty:
+        df["date"] = pd.to_datetime(df["date"], utc=True).dt.tz_localize(None)
+    return df
+
+def _compress_dry_to_segments(df, end_dt):
+    """
+    Transforme la série dryStatus ('On'/'Off'/'Null') en segments [start, end).
+    """
+    if df.empty or "dryStatus" not in df.columns:
+        return pd.DataFrame(columns=["start", "end", "track", "label"])
+
+    s = df[["date", "dryStatus"]].sort_values("date").copy()
+    end_naive = pd.Timestamp(end_dt)
+    if end_naive.tzinfo:
+        end_naive = end_naive.tz_localize(None)
+
+    run_id = (s["dryStatus"] != s["dryStatus"].shift()).cumsum()
+    segs = s.groupby(run_id).agg(start=("date", "first"), value=("dryStatus", "last")).reset_index(drop=True)
+    segs["end"] = segs["start"].shift(-1)
+    segs.loc[segs["end"].isna(), "end"] = end_naive
+    segs = segs[segs["end"] > segs["start"]]
+    segs["track"] = "dryStatus (v2)"
+    segs["label"] = segs["value"]
+    return segs[["start", "end", "track", "label"]]
+
+
+
 # ========= 🧭 Mapping + loaders frise modes =========
 # ========= 🧭 Mappings V1/V2 =========
 # V1 -> workingMode
@@ -788,6 +840,39 @@ st.plotly_chart(fig_mode, use_container_width=True)
 
 
 
+# ========== 🧵 Frise temporelle — dryStatus (batteries v2) ==========
+st.subheader("🧵 Frise temporelle — dryStatus (v2)")
+
+if detect_generation(device_info["hardware_version"].values[0] if "hardware_version" in device_info.columns else None) != "v2":
+    st.info("dryStatus est disponible uniquement pour les batteries v2.")
+else:
+    df_dry = load_dry_status_entity(selected_device, start_str, end_str)
+    if df_dry.empty:
+        st.info("Aucune donnée dryStatus sur cette période.")
+    else:
+        segs_dry = _compress_dry_to_segments(df_dry, end_datetime)
+
+        color_map = {"On": "green", "Off": "blue", "Null": "gray"}
+        fig_dry = px.timeline(
+            segs_dry,
+            x_start="start", x_end="end",
+            y="track",
+            color="label",
+            color_discrete_map=color_map,
+            hover_data={"start": "|%Y-%m-%d %H:%M", "end": "|%Y-%m-%d %H:%M", "track": False},
+            title="Frise temporelle — dryStatus"
+        )
+
+        apply_common_time_axis(fig_dry, start_datetime, end_datetime, hide_xticks=False)
+        fig_dry.update_layout(
+            height=120,  # frise compacte
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0),
+            margin=dict(l=ALIGN_L, r=ALIGN_R, t=ALIGN_T, b=ALIGN_B)
+        )
+        fig_dry.update_yaxes(title_text="", automargin=True)
+        fig_dry.add_vline(x=repere_datetime, line_width=2, line_dash="dash", line_color="red")
+
+        st.plotly_chart(fig_dry, use_container_width=True)
 
 
 
