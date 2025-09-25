@@ -572,10 +572,10 @@ apply_common_time_axis(fig, start_datetime, end_datetime, hide_xticks=False)
 
 st.plotly_chart(fig, use_container_width=True)
 
-# ========== 🔋 Courbes battery_status_entity (2 axes Y) ==========
+# ========== 🔋 Courbes battery_status_entity — multi-séries par axe ==========
 st.subheader("🔋 Mesures battery_status_entity")
 
-# ================== Unités des colonnes battery_status_entity ==================
+# --- Unités connues (réutilisable ailleurs) ---
 UNITS = {
     "batteryPower": "W",
     "solarPower": "W",
@@ -584,7 +584,7 @@ UNITS = {
     "backupPower": "W",
     "maxPower": "W",
 
-    "soc": "%",  # échelle 0–100 + suffixe %
+    "soc": "%",
 
     "totalEnergyExported": "kWh",
     "totalEnergyImported": "kWh",
@@ -595,8 +595,8 @@ UNITS = {
     "globalSoh": "%",
 
     "wifiRssi": "dBm",
-    "ambiantTemperature": "°C",   # selon le nom présent dans ta table
-    "ambientTemperature": "°C",   # (garde celui qui existe)
+    "ambiantTemperature": "°C",
+    "ambientTemperature": "°C",
     "invTemperature": "°C",
 
     "gridVoltage": "V",
@@ -607,158 +607,149 @@ def unit_of(col: str) -> str:
     return UNITS.get(col, "")
 
 def label_bracket(col: str) -> str:
-    """Texte pour menus/legend: 'batteryPower [W]'."""
     u = unit_of(col)
     return f"{col} [{u}]" if u else col
 
-def axis_title(col: str) -> str:
-    """Texte pour titre d'axe: 'batteryPower (W)'."""
-    u = unit_of(col)
-    return f"{col} ({u})" if u else col
+def axis_title(cols: list[str]) -> str:
+    """Titre d'axe en fonction des séries: si même unité -> '(<unit>)', sinon vide."""
+    units = {unit_of(c) for c in cols if c}
+    units.discard("")  # on ignore 'sans unité'
+    if len(units) == 1:
+        return f"Axe ({next(iter(units))})"
+    return "Axe"
 
 def hover_tpl(col: str) -> str:
-    """Hover avec unité si dispo."""
     u = unit_of(col)
-    if u:
-        return f"%{{y:.2f}} {u}<br>%{{x|%Y-%m-%d %H:%M}}<extra>{col}</extra>"
-    else:
-        return f"%{{y:.2f}}<br>%{{x|%Y-%m-%d %H:%M}}<extra>{col}</extra>"
+    return (f"%{{y:.2f}} {u}<br>%{{x|%Y-%m-%d %H:%M}}<extra>{col}</extra>"
+            if u else f"%{{y:.2f}}<br>%{{x|%Y-%m-%d %H:%M}}<extra>{col}</extra>")
 
-def _aligned_zero_ranges(y1, y2, pad_ratio=0.02):
-    """
-    Retourne deux ranges [min, max] pour yaxis et yaxis2
-    avec le 0 à la même hauteur, quelles que soient les unités.
-    """
+def _aligned_zero_ranges(y_left_series, y_right_series, pad_ratio=0.02):
     import numpy as np
     import pandas as pd
-
     def extents(series):
         s = pd.Series(series).astype(float).dropna()
         if s.empty:
-            return 0.0, 0.0  # pos, neg (magnitudes)
+            return 0.0, 0.0
         return max(0.0, s.max()), max(0.0, -s.min())
-
-    pos1, neg1 = extents(y1)
-    pos2, neg2 = extents(y2)
-
+    pos1, neg1 = extents(y_left_series)
+    pos2, neg2 = extents(y_right_series)
     def ratio(pos, neg):
         if pos == 0 and neg == 0: return 0.5
         if neg == 0: return 1.0
         if pos == 0: return 0.0
         return pos / (pos + neg)
-
     r1, r2 = ratio(pos1, neg1), ratio(pos2, neg2)
     f = float(np.clip((r1 + r2) / 2.0, 0.1, 0.9))
-
-
     def make_range(pos, neg, f):
-        # ajuste l'enveloppe pour que 0 tombe à f
         pos_ext = max(pos, (f / (1 - f)) * neg if f < 0.999 else pos)
         neg_ext = max(neg, ((1 - f) / f) * pos if f > 0.001 else neg)
         span = pos_ext + neg_ext
         pad = pad_ratio * (span if span > 0 else 1.0)
         return [-neg_ext - pad, pos_ext + pad]
-
     return make_range(pos1, neg1, f), make_range(pos2, neg2, f)
 
-
 available_status_cols = get_status_numeric_cols()
-if len(available_status_cols) < 2:
-    st.info("Pas assez de colonnes numériques dans battery_status_entity pour tracer deux courbes.")
+if not available_status_cols:
+    st.info("Aucune colonne numérique disponible dans battery_status_entity.")
 else:
+    # --- Sélection multi-séries par axe
     c1, c2 = st.columns(2)
     with c1:
-        y_left_col = st.selectbox(
-            "Axe Y gauche",
+        default_left = [c for c in ["batteryPower"] if c in available_status_cols] or [available_status_cols[0]]
+        left_cols = st.multiselect(
+            "Séries sur l’axe gauche (unités identiques conseillées)",
             options=available_status_cols,
-            index=(available_status_cols.index("batteryPower") if "batteryPower" in available_status_cols else 0),
-            key="bse_y_left",
+            default=default_left,
+            key="bse_left_multi",
             format_func=label_bracket
         )
     with c2:
-        default_right_idx = (
-            available_status_cols.index("soc") if "soc" in available_status_cols
-            else (1 if len(available_status_cols) > 1 else 0)
-        )
-        y_right_col = st.selectbox(
-            "Axe Y droite",
+        default_right = [c for c in ["soc"] if c in available_status_cols]
+        right_cols = st.multiselect(
+            "Séries sur l’axe droit (unités identiques conseillées)",
             options=available_status_cols,
-            index=default_right_idx,
-            key="bse_y_right",
+            default=default_right,
+            key="bse_right_multi",
             format_func=label_bracket
         )
 
+    # Dédupe propre: si une colonne est dans les deux listes, on la garde à gauche en priorité
+    right_cols = [c for c in right_cols if c not in set(left_cols)]
 
-    df_status = load_status_entity(selected_device, start_str, end_str, [y_left_col, y_right_col])
+    cols_to_load = list(dict.fromkeys(["date"] + left_cols + right_cols))  # conserve l'ordre, évite doublons
 
-    if df_status.empty:
-        st.info("Aucune donnée battery_status_entity sur cette période.")
+    if len(cols_to_load) == 1:  # seulement "date"
+        st.info("Sélectionne au moins une série.")
     else:
-        fig_status = go.Figure()
-
-        # Noms + hover avec unités
-        fig_status.add_trace(go.Scatter(
-            x=df_status["date"],
-            y=df_status[y_left_col],
-            mode="lines",
-            name=label_bracket(y_left_col),
-            yaxis="y",
-            hovertemplate=hover_tpl(y_left_col)
-        ))
-
-        if y_right_col != y_left_col and y_right_col in df_status.columns:
-            fig_status.add_trace(go.Scatter(
-                x=df_status["date"],
-                y=df_status[y_right_col],
-                mode="lines",
-                name=label_bracket(y_right_col),
-                yaxis="y2",
-                hovertemplate=hover_tpl(y_right_col)
-            ))
-
-        # Titres d'axes (sans forcer SOC 0–100 : on veut aligner le 0 quoi qu'il arrive)
-        left_title  = "SOC (%)" if y_left_col  == "soc" else axis_title(y_left_col)
-        right_title = "SOC (%)" if y_right_col == "soc" else axis_title(y_right_col)
-
-        # Définition des axes
-        yaxis_left  = dict(title=left_title,  zeroline=True, zerolinewidth=1)
-        yaxis_right = dict(title=right_title, zeroline=True, zerolinewidth=1,
-                        overlaying="y", side="right")
-
-        # --- ALIGNEMENT DU ZÉRO QUELLES QUE SOIENT LES UNITÉS -----------------
-        if y_right_col in df_status.columns:
-            rng_left, rng_right = _aligned_zero_ranges(
-                df_status[y_left_col],
-                df_status[y_right_col]
-            )
+        df_status = load_status_entity(selected_device, start_str, end_str, cols_to_load[1:])
+        if df_status.empty:
+            st.info("Aucune donnée battery_status_entity sur cette période.")
         else:
-            # si une seule série, on prend une plage simple autour de ses données
-            rng_left, rng_right = _aligned_zero_ranges(
-                df_status[y_left_col],
-                df_status[y_left_col]
+            fig_status = go.Figure()
+
+            # Traces axe gauche
+            for col in left_cols:
+                if col in df_status.columns:
+                    fig_status.add_trace(go.Scatter(
+                        x=df_status["date"],
+                        y=df_status[col],
+                        mode="lines",
+                        name=label_bracket(col),
+                        yaxis="y",
+                        hovertemplate=hover_tpl(col)
+                    ))
+
+            # Traces axe droit
+            for col in right_cols:
+                if col in df_status.columns:
+                    fig_status.add_trace(go.Scatter(
+                        x=df_status["date"],
+                        y=df_status[col],
+                        mode="lines",
+                        name=label_bracket(col),
+                        yaxis="y2",
+                        hovertemplate=hover_tpl(col)
+                    ))
+
+            # Titres axes (essaie d’afficher l’unité si homogène)
+            y_left_title  = axis_title(left_cols)  if left_cols  else "Axe gauche"
+            y_right_title = axis_title(right_cols) if right_cols else "Axe droit"
+
+            yaxis_left  = dict(title=y_left_title,  zeroline=True, zerolinewidth=1)
+            yaxis_right = dict(title=y_right_title, zeroline=True, zerolinewidth=1,
+                               overlaying="y", side="right")
+
+            # Aligne le 0 entre les deux axes en tenant compte de toutes les séries de chaque axe
+            import pandas as _pd
+            y_left_series  = _pd.concat([df_status[c] for c in left_cols if c in df_status.columns], ignore_index=True) if left_cols else _pd.Series([0])
+            y_right_series = _pd.concat([df_status[c] for c in right_cols if c in df_status.columns], ignore_index=True) if right_cols else _pd.Series([0])
+
+            rng_left, rng_right = _aligned_zero_ranges(y_left_series, y_right_series)
+            yaxis_left.update(range=rng_left)
+            yaxis_right.update(range=rng_right)
+            yaxis_left.pop("ticksuffix", None)
+            yaxis_right.pop("ticksuffix", None)
+
+            fig_status.update_layout(
+                title="battery_status_entity",
+                yaxis=yaxis_left,
+                yaxis2=yaxis_right,
+                height=420,
+                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0)
             )
 
-        # Applique les ranges calculés
-        yaxis_left.update(range=rng_left)
-        yaxis_right.update(range=rng_right)
+            apply_common_time_axis(fig_status, start_datetime, end_datetime, hide_xticks=False)
+            st.plotly_chart(fig_status, use_container_width=True)
 
-        # IMPORTANT : pas de ticksuffix résiduel (évite le 0..300%)
-        yaxis_left.pop("ticksuffix", None)
-        yaxis_right.pop("ticksuffix", None)
-        # ----------------------------------------------------------------------
-
-        fig_status.update_layout(
-            title="battery_status_entity",
-            yaxis=yaxis_left,
-            yaxis2=yaxis_right,
-            height=380,
-            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0)
-        )
-
-        # même axe temps partout
-        apply_common_time_axis(fig_status, start_datetime, end_datetime, hide_xticks=False)
-
-        st.plotly_chart(fig_status, use_container_width=True)
+            # Alerte douce si unités hétérogènes sur un axe (autorisé mais moins lisible)
+            def units_set(cols): 
+                s = {unit_of(c) for c in cols}
+                s.discard("")
+                return s
+            if len(units_set(left_cols)) > 1:
+                st.warning("Axe gauche : unités différentes détectées (graphique OK mais moins lisible).")
+            if len(units_set(right_cols)) > 1:
+                st.warning("Axe droit : unités différentes détectées (graphique OK mais moins lisible).")
 
 
 
@@ -768,9 +759,16 @@ else:
 # ========== 🧭 Frise temporelle des modes ==========
 st.subheader("🧭 Frise temporelle des modes")
 
-# Détecte génération à partir des infos device sélectionné
+# Détecte génération à partir des infos du device sélectionné
 hw_version = device_info["hardware_version"].values[0] if "hardware_version" in device_info.columns else None
 gen = detect_generation(hw_version)
+
+# Prépare la figure et le mapping (définis ici, en dehors de la création conditionnelle)
+fig_mode = None
+name_map = {
+    "workingMode": f"Working mode ({gen})",
+    "mode": "Mode (v2)"
+}
 
 tracks_available = get_mode_cols(gen)
 if not tracks_available:
@@ -799,12 +797,9 @@ else:
             st.info("Pas de segments exploitables.")
         else:
             # Libellés lisibles pour les pistes
-            name_map = {
-                "workingMode": f"Working mode ({gen})",
-                "mode": "Mode (v2)"
-            }
             segs["track"] = segs["track"].map(name_map).fillna(segs["track"])
 
+            # Création de la figure (seulement si on a des données)
             fig_mode = px.timeline(
                 segs,
                 x_start="start", x_end="end",
@@ -814,29 +809,30 @@ else:
                 title="Frise temporelle des modes"
             )
 
-if 'name_map' in locals():
-    desired = [name_map[c] for c in ["workingMode", "mode"] if c in selected_tracks]
-    tickvals = desired
-    ticktext = [t.replace("Working mode", "Working<br>mode", 1) for t in tickvals]
-    fig_mode.update_yaxes(
-        categoryorder="array",
-        categoryarray=desired,
-        tickmode="array",
-        tickvals=tickvals,
-        ticktext=ticktext,
-        title_text="",
-        automargin=True
-    )
-    fig_mode.update_layout(
-        height=160 + 40 * len(desired),
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0)
-    )
+# Affichage et post-traitements uniquement si la figure existe
+if fig_mode is not None:
+    desired = [name_map[c] for c in ["workingMode", "mode"] if "name_map" in locals() and c in selected_tracks]
+    if desired:
+        tickvals = desired
+        ticktext = [t.replace("Working mode", "Working<br>mode", 1) for t in tickvals]
+        fig_mode.update_yaxes(
+            categoryorder="array",
+            categoryarray=desired,
+            tickmode="array",
+            tickvals=tickvals,
+            ticktext=ticktext,
+            title_text="",
+            automargin=True
+        )
+        fig_mode.update_layout(
+            height=160 + 40 * len(desired),
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0)
+        )
 
+    apply_common_time_axis(fig_mode, start_datetime, end_datetime, hide_xticks=False)
+    fig_mode.add_vline(x=repere_datetime, line_width=2, line_dash="dash", line_color="red")
 
-apply_common_time_axis(fig_mode, start_datetime, end_datetime, hide_xticks=False)
-fig_mode.add_vline(x=repere_datetime, line_width=2, line_dash="dash", line_color="red")
-
-st.plotly_chart(fig_mode, use_container_width=True)
+    st.plotly_chart(fig_mode, use_container_width=True)
 
 
 
