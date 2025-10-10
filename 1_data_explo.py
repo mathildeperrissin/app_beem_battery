@@ -63,7 +63,6 @@ def load_infos():
       LEFT JOIN `beem-data-warehouse.airbyte_postgresql.house` AS h ON h.id = hu.house_id
       WHERE d.deleted_at IS NULL
         AND d.replaced_by_id IS NULL
-        AND d.warranty_status = 'activated'
         --AND d.serial_number NOT IN ('021LOLL190154M','021LOLF080008M')
         --AND u.id NOT IN (22, 4395, 34538)
         --AND d.hardware_version = 'ampace_v1'
@@ -139,6 +138,18 @@ st.subheader("🔧 Informations techniques")
 created_at_str = pd.to_datetime(device_info["created_at"].values[0]).strftime("%d/%m/%Y") \
     if pd.notnull(device_info["created_at"].values[0]) else "Inconnue"
 
+
+# --- Warranty status + Statut affichés en technique ---
+ws_val = device_info["warranty_status"].values[0] if "warranty_status" in device_info.columns else None
+ws_display = str(ws_val) if pd.notna(ws_val) else "NULL"
+
+if ws_display == "activated":
+    statut_display = "customer_usage (warranty_status = 'activated')"
+else:
+    statut_display = f"pending (warranty_status = '{ws_display}')"
+
+
+
 col1, col2, col3 = st.columns(3)
 with col1:
     st.metric("Version hardware", device_info["hardware_version"].values[0])
@@ -152,6 +163,10 @@ with col4:
     st.metric("Nb modules", int(device_info["nb_modules"].values[0]))
 with col5:
     st.metric("SOH (%)", round(device_info["global_soh"].values[0], 1))
+with col6:
+    st.metric("Warranty status", ws_display)
+
+
 
 
 

@@ -270,3 +270,77 @@ else:
         file_name="active_issues.csv",
         mime="text/csv"
     )
+
+@st.cache_data
+def load_low_soc_batteries():
+    # Batteries avec SOC < 5% (en supposant que bld.soc existe ; convertit [0–1] -> % si besoin)
+    query = """
+    WITH base AS (
+      SELECT
+        d.id AS battery_id,
+        d.serial_number,
+        u.firstname,
+        u.lastname,
+        bld.soc AS soc_raw
+      FROM `beem-data-warehouse.airbyte_postgresql.battery_device` d
+      LEFT JOIN `beem-data-warehouse.airbyte_postgresql.battery_live_data` bld
+        ON bld.battery_id = d.id
+      INNER JOIN `beem-data-warehouse.airbyte_postgresql.house` h
+        ON h.id = d.house_id
+      INNER JOIN `beem-data-warehouse.airbyte_postgresql.house_user` hu
+        ON hu.house_id = h.id AND hu.mode = 'W'
+      INNER JOIN `beem-data-warehouse.airbyte_postgresql.user` u
+        ON u.id = hu.user_id
+      WHERE d.deleted_at IS NULL
+        AND d.replaced_by_id IS NULL
+        AND u.id NOT IN (22, 4395)
+        AND NOT REGEXP_CONTAINS(LOWER(u.email), r'@beemenergy\\.(com|fr)$')
+        -- Optionnel : ne garder que des mesures récentes
+        -- AND bld.last_known_measure_date >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 48 HOUR)
+    )
+    SELECT
+      battery_id,
+      serial_number,
+      firstname,
+      lastname,
+      ROUND(
+        CASE
+          WHEN SAFE_CAST(soc_raw AS FLOAT64) IS NULL THEN NULL
+          WHEN SAFE_CAST(soc_raw AS FLOAT64) <= 1 THEN SAFE_CAST(soc_raw AS FLOAT64) * 100
+          ELSE SAFE_CAST(soc_raw AS FLOAT64)
+        END
+      , 1) AS soc
+    FROM base
+    WHERE
+      SAFE_CAST(soc_raw AS FLOAT64) IS NOT NULL
+      AND (
+        -- si soc est en [0–1]
+        SAFE_CAST(soc_raw AS FLOAT64) <= 1 AND SAFE_CAST(soc_raw AS FLOAT64) < 0.05
+        OR
+        -- si soc est déjà en %
+        SAFE_CAST(soc_raw AS FLOAT64) > 1 AND SAFE_CAST(soc_raw AS FLOAT64) < 5
+      )
+    ORDER BY soc ASC, lastname ASC, firstname ASC
+    """
+    return client.query(query).to_dataframe()
+
+
+st.divider()
+
+# E) SOC < 5%
+st.header("🪫 Batteries with SOC < 5%")
+low_soc_df = load_low_soc_batteries()
+
+if low_soc_df.empty:
+    st.success("Aucune batterie avec SOC < 5% ✅")
+else:
+    st.caption(f"{len(low_soc_df)} lignes")
+    st.dataframe(low_soc_df[[
+        "lastname", "firstname", "battery_id", "serial_number", "soc"
+    ]], use_container_width=True)
+    st.download_button(
+        "📥 Export CSV (SOC < 5%)",
+        data=low_soc_df.to_csv(index=False).encode("utf-8"),
+        file_name="low_soc_batteries_lt5.csv",
+        mime="text/csv"
+    )
