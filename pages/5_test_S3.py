@@ -162,12 +162,6 @@ def load_json_data(serial_number, selected_date, start_time, end_time):
 # Transformation -> DataFrame + renommage selon hardware_version
 # =========================
 def align_and_warn(names: list, n_data_cols: int, label: str):
-    """
-    Le CSV (names) est la référence.
-    - Si JSON a moins de colonnes que le CSV : on l'indique et on tronque les noms.
-    - Si JSON a plus de colonnes : on complète avec extra_*.
-    - Si égal : message OK.
-    """
     expected = len(names)
 
     if n_data_cols == expected:
@@ -178,11 +172,10 @@ def align_and_warn(names: list, n_data_cols: int, label: str):
         diff = expected - n_data_cols
         st.warning(
             f"{label} : on attend {expected} colonnes, ici il y a {n_data_cols} colonnes dans les fichiers JSON "
-            f"(−{diff}). Les {diff} dernières colonnes du CSV ne seront pas utilisées."
+            f"(−{diff})."
         )
         return names[:n_data_cols]
 
-    # n_data_cols > expected
     diff = n_data_cols - expected
     fill = [f"extra_{i+1}" for i in range(diff)]
     st.warning(
@@ -190,7 +183,6 @@ def align_and_warn(names: list, n_data_cols: int, label: str):
         f"(+{diff}). {diff} noms fictifs (extra_*) ont été ajoutés."
     )
     return names + fill
-
 
 
 def records_to_dataframe(records, serial_number: str):
@@ -213,7 +205,6 @@ def records_to_dataframe(records, serial_number: str):
         df.columns = ["date"] + chosen_names
         st.info("Attribution des noms basée sur hardware_version = ampace_v2 (BBV2).")
     else:
-        # fallback si pas trouvé : on informe et on applique BBV2 par défaut (ou BBV1 si tu préfères)
         st.warning(f"hardware_version inconnue pour {serial_number} → fallback BBV2.")
         chosen_names = align_and_warn(BBV2_COLUMNS, n, "BBV2")
         df.columns = ["date"] + chosen_names
@@ -250,38 +241,73 @@ else:
         end_time = st.time_input("🕒 Heure de fin", time(23, 55), step=timedelta(minutes=5))
 
 # =========================
-# Chargement + affichage
+# Boutons de chargement
 # =========================
-if st.button("Charger"):
+col_a, col_b = st.columns(2)
+with col_a:
+    load_all = st.button("Charger toutes les données")
+with col_b:
+    load_leakage = st.button("Charger leakage current")
+
+# =========================
+# Actions
+# =========================
+if load_all or load_leakage:
     records = load_json_data(serial_number, selected_date, start_time, end_time)
     df = records_to_dataframe(records, serial_number)
 
     if df.empty:
         st.warning("Aucune donnée sur la plage demandée.")
     else:
-        st.dataframe(df.head())
-
-        st.markdown("### 📉 Graphs")
-
-        # Conversion sûre pour les dates
+        # conversion date
         df["date"] = pd.to_datetime(df["date"], errors="coerce")
 
-        for name in df.columns[1:]:
-            fig = px.line(
-                df,
-                x="date",
-                y=name,
-                title=name,
-                labels={"date": "Heure", name: "Valeur"},
-                markers=True,
-            )
+        hw = get_hw_version_for_serial(serial_number)
 
-            # 🔴 Ligne verticale pointillée à l'heure du bug (sans texte)
-            fig.add_vline(
-                x=bug_datetime,
-                line_dash="dash",
-                line_color="red"
-            )
+        if load_all:
+            st.dataframe(df.head())
+            st.markdown("### 📉 Graphs")
+            for name in df.columns[1:]:
+                fig = px.line(
+                    df,
+                    x="date",
+                    y=name,
+                    title=name,
+                    labels={"date": "Heure", name: "Valeur"},
+                    markers=True,
+                )
+                fig.add_vline(
+                    x=bug_datetime,
+                    line_dash="dash",
+                    line_color="red"
+                )
+                st.plotly_chart(fig, use_container_width=True)
 
-            st.plotly_chart(fig, use_container_width=True)
+        if load_leakage:
+            # choisir la bonne colonne
+            if hw == "ampace_v1":
+                leakage_col = "Inv_Ileak"
+            elif hw == "ampace_v2":
+                leakage_col = "gfci_leakage_current"
+            else:
+                # cas où on ne sait pas : on tente V2
+                leakage_col = "gfci_leakage_current"
 
+            if leakage_col not in df.columns:
+                st.error(f"La colonne '{leakage_col}' n'est pas présente dans les données pour cette batterie.")
+            else:
+                st.dataframe(df[["date", leakage_col]].head())
+                fig = px.line(
+                    df,
+                    x="date",
+                    y=leakage_col,
+                    title=f"Leakage current ({leakage_col})",
+                    labels={"date": "Heure", leakage_col: "Valeur"},
+                    markers=True,
+                )
+                fig.add_vline(
+                    x=bug_datetime,
+                    line_dash="dash",
+                    line_color="red"
+                )
+                st.plotly_chart(fig, use_container_width=True)
