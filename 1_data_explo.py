@@ -212,380 +212,121 @@ with col2:
 repere_datetime = datetime.combine(repere_date, repere_time)
 
 
-# ========== 📈 Courbes multi-sources combinées ==========
+# ===================== SECTION COMMENTÉE: Visualisation combinée des mesures =====================
+# Tout ce bloc (sources, load_data, et le graph combiné + réglage Y) est mis en commentaire
+# pour le retirer de l'UI tout en conservant le code.
+
+# sources = {
+#     "battery_active_energy_measure": {
+#         "title": "Consommation infra-journalière",
+#         "y_label": "Wh par batterie",
+#         "agg": False,
+#     },
+#     "battery_active_returned_energy_meter_measure": {
+#         "title": "Ré-injection infra-journalière",
+#         "y_label": "Wh par batterie",
+#         "agg": False,
+#     },
+#     "battery_active_returned_energy_measure": {
+#         "title": "Production solaire (somme MPPT)",
+#         "y_label": "Wh total",
+#         "agg": True,
+#     },
+#     "battery_energy_charged_measure": {
+#         "title": "Énergie stockée (batterie)",
+#         "y_label": "Wh",
+#         "agg": False,
+#     },
+#     "battery_energy_discharged_measure": {
+#         "title": "Énergie déstockée (batterie)",
+#         "y_label": "Wh",
+#         "agg": False,
+#     },
+# }
+
+# @st.cache_data
+# def load_data(table_name, device_id, start_dt, end_dt):
+#     """
+#     Charge une table mongodb en détectant automatiquement la colonne id (deviceId/batteryId/...)
+#     et en filtrant sur la période en TIMESTAMP (compatible TIMESTAMP & DATETIME).
+#     """
+#     if isinstance(device_id, str) and device_id.isdigit():
+#         device_id = int(device_id)
+#
+#     full_table = f"beem-data-warehouse.mongodb.{table_name}"
+#     table = client.get_table(full_table)
+#     cols = {f.name: f.field_type for f in table.schema}
+#
+#     # 1) Colonne d'identifiant (ordres de préférence)
+#     id_col = next((c for c in ["deviceId", "batteryId", "device_id", "battery_id"] if c in cols), None)
+#     if id_col is None:
+#         raise ValueError(f"Aucune colonne id reconnue dans {full_table} (attendu deviceId/batteryId/...).")
+#
+#     # 2) Colonne de date
+#     date_col = "date" if "date" in cols else ("timestamp" if "timestamp" in cols else None)
+#     if date_col is None:
+#         raise ValueError(f"Aucune colonne de date reconnue dans {full_table} (attendu date/timestamp).")
+#
+#     # 3) Build requête (filtre en TIMESTAMP pour éviter les soucis DATETIME)
+#     query = f"""
+#         SELECT *
+#         FROM `{full_table}`
+#         WHERE {id_col} = {device_id}
+#           AND TIMESTAMP({date_col}) BETWEEN TIMESTAMP('{start_dt}') AND TIMESTAMP('{end_dt}')
+#     """
+#
+#     df = client.query(query).to_dataframe()
+#
+#     # Normalise la colonne date pour l'affichage Plotly (naive)
+#     if not df.empty and date_col in df.columns:
+#         df["date"] = pd.to_datetime(df[date_col], utc=True).dt.tz_localize(None)
+#
+#     # Valeur : cast en numérique au besoin
+#     if "value" in df.columns and df["value"].dtype == "object":
+#         df["value"] = pd.to_numeric(df["value"], errors="coerce")
+#
+#     return df
+
+# #########################"GROS GRAPH combiné"""""########################
+# st.subheader("📊 Visualisation combinée des mesures")
+# selected_sources = st.multiselect(
+#     "Sélectionne les courbes à afficher :",
+#     options=list(sources.keys()),
+#     format_func=lambda x: sources[x]["title"],
+#     default=list(sources.keys())
+# )
+# fig = go.Figure()
+# for table_name in selected_sources:
+#     meta = sources[table_name]
+#     df = load_data(table_name, selected_device, start_str, end_str)
+#     if df.empty:
+#         st.warning(f"Aucune donnée pour : {meta['title']}")
+#         continue
+#     if meta["agg"]:
+#         if any(c in df.columns for c in ["deviceSubId", "device_sub_id", "mppt", "mpptId"]):
+#             df = df.groupby("date", as_index=False)["value"].sum()
+#     df = df.sort_values("date")
+#     fig.add_trace(go.Scatter(x=df["date"], y=df["value"], mode="lines", name=meta["title"]))
+# fig.add_vline(x=repere_datetime, line_width=2, line_dash="dash", line_color="red")
+# fig.add_annotation(x=repere_datetime, y=1, yref="paper", text=repere_datetime.strftime("%Y-%m-%d %H:%M"),
+#                   showarrow=False, bgcolor="red", font=dict(color="white"), xanchor="left")
+# st.subheader("📏 Réglage de l'échelle Y")
+# max_y = st.number_input("Valeur maximale de l'axe Y (Wh)", min_value=0, max_value=15000, value=600, step=100)
+# fig.update_layout(
+#     title="Courbes combinées des mesures",
+#     title_y=0.99,
+#     xaxis_title=None,
+#     yaxis_title="Wh",
+#     legend_title="Type de mesure",
+#     height=600,
+#     yaxis=dict(title="Wh", range=[0, max_y]),
+#     yaxis2=dict(title="SOC (%)", overlaying="y", side="right", range=[0, 100], ticksuffix="%"),
+#     legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0)
+# )
+# apply_common_time_axis(fig, start_datetime, end_datetime, hide_xticks=False)
+# st.plotly_chart(fig, use_container_width=True)
+# =================== FIN SECTION COMMENTÉE ===================
 
-sources = {
-    "battery_active_energy_measure": {
-        "title": "Consommation infra-journalière",
-        "y_label": "Wh par batterie",
-        "agg": False,
-    },
-    "battery_active_returned_energy_meter_measure": {
-        "title": "Ré-injection infra-journalière",
-        "y_label": "Wh par batterie",
-        "agg": False,
-    },
-    "battery_active_returned_energy_measure": {
-        "title": "Production solaire (somme MPPT)",
-        "y_label": "Wh total",
-        "agg": True,
-    },
-    "battery_energy_charged_measure": {
-        "title": "Énergie stockée (batterie)",
-        "y_label": "Wh",
-        "agg": False,
-    },
-    "battery_energy_discharged_measure": {
-        "title": "Énergie déstockée (batterie)",
-        "y_label": "Wh",
-        "agg": False,
-    },
-}
-
-@st.cache_data
-def load_data(table_name, device_id, start_dt, end_dt):
-    """
-    Charge une table mongodb en détectant automatiquement la colonne id (deviceId/batteryId/...)
-    et en filtrant sur la période en TIMESTAMP (compatible TIMESTAMP & DATETIME).
-    """
-    if isinstance(device_id, str) and device_id.isdigit():
-        device_id = int(device_id)
-
-    full_table = f"beem-data-warehouse.mongodb.{table_name}"
-    table = client.get_table(full_table)
-    cols = {f.name: f.field_type for f in table.schema}
-
-    # 1) Colonne d'identifiant (ordres de préférence)
-    id_col = next((c for c in ["deviceId", "batteryId", "device_id", "battery_id"] if c in cols), None)
-    if id_col is None:
-        raise ValueError(f"Aucune colonne id reconnue dans {full_table} (attendu deviceId/batteryId/...).")
-
-    # 2) Colonne de date
-    date_col = "date" if "date" in cols else ("timestamp" if "timestamp" in cols else None)
-    if date_col is None:
-        raise ValueError(f"Aucune colonne de date reconnue dans {full_table} (attendu date/timestamp).")
-
-    # 3) Build requête (filtre en TIMESTAMP pour éviter les soucis DATETIME)
-    query = f"""
-        SELECT *
-        FROM `{full_table}`
-        WHERE {id_col} = {device_id}
-          AND TIMESTAMP({date_col}) BETWEEN TIMESTAMP('{start_dt}') AND TIMESTAMP('{end_dt}')
-    """
-
-    df = client.query(query).to_dataframe()
-
-    # Normalise la colonne date pour l'affichage Plotly (naive)
-    if not df.empty and date_col in df.columns:
-        df["date"] = pd.to_datetime(df[date_col], utc=True).dt.tz_localize(None)
-
-    # Valeur : cast en numérique au besoin
-    if "value" in df.columns and df["value"].dtype == "object":
-        df["value"] = pd.to_numeric(df["value"], errors="coerce")
-
-    return df
-
-
-
-
-# ========= 🔋 battery_status_entity : colonnes & loader =========
-@st.cache_data
-def get_status_numeric_cols():
-    """Colonnes numériques de battery_status_entity pour le graphe 'Mesures',
-    en excluant batteryId/date + workingMode/mode (affichés dans la frise)."""
-    table = client.get_table("beem-data-warehouse.mongodb.battery_status_entity")
-    numeric_types = {"INTEGER", "INT64", "FLOAT", "FLOAT64", "NUMERIC", "BIGNUMERIC"}
-    exclude = {"batteryId", "date", "workingMode", "mode", "numberOfCycles", "numberOfModules"}  # <- exclues du graphe
-    cols = [f.name for f in table.schema if f.field_type in numeric_types and f.name not in exclude]
-    cols.sort()
-    return cols
-
-
-@st.cache_data
-def load_status_entity(device_id, start_dt, end_dt, columns):
-    """Charge date + colonnes demandées pour la batterie et la période données."""
-    if isinstance(device_id, str) and device_id.isdigit():
-        device_id = int(device_id)
-
-    # dédoublonne et conserve l'ordre
-    cols = ["date"] + list(dict.fromkeys(columns))
-    select_cols = ", ".join(cols)
-
-    query = f"""
-        SELECT {select_cols}
-        FROM `beem-data-warehouse.mongodb.battery_status_entity`
-        WHERE batteryId = {device_id}
-          AND TIMESTAMP(date) BETWEEN TIMESTAMP('{start_dt}') AND TIMESTAMP('{end_dt}')
-        ORDER BY date
-    """
-    df = client.query(query).to_dataframe()
-    if not df.empty and "date" in df.columns:
-        df["date"] = pd.to_datetime(df["date"], utc=True).dt.tz_localize(None)
-    return df
-
-# ---------- dryStatus : loader + compression en segments ----------
-
-@st.cache_data
-def load_dry_status_entity(device_id, start_dt, end_dt):
-    """
-    Charge date + dryStatus (normalisé en 'On' / 'Off' / 'Null') pour V2.
-    """
-    if isinstance(device_id, str) and device_id.isdigit():
-        device_id = int(device_id)
-
-    query = f"""
-        SELECT
-          date,
-          CASE
-            WHEN dryStatus IS NULL THEN 'Null'
-            WHEN LOWER(CAST(dryStatus AS STRING)) IN ('on','true','1')  THEN 'On'
-            WHEN LOWER(CAST(dryStatus AS STRING)) IN ('off','false','0') THEN 'Off'
-            ELSE 'Null'
-          END AS dryStatus
-        FROM `beem-data-warehouse.mongodb.battery_status_entity`
-        WHERE batteryId = {device_id}
-          AND TIMESTAMP(date) BETWEEN TIMESTAMP('{start_dt}') AND TIMESTAMP('{end_dt}')
-        ORDER BY date
-    """
-    df = client.query(query).to_dataframe()
-    if not df.empty:
-        df["date"] = pd.to_datetime(df["date"], utc=True).dt.tz_localize(None)
-    return df
-
-def _compress_dry_to_segments(df, end_dt):
-    """
-    Transforme la série dryStatus ('On'/'Off'/'Null') en segments [start, end).
-    """
-    if df.empty or "dryStatus" not in df.columns:
-        return pd.DataFrame(columns=["start", "end", "track", "label"])
-
-    s = df[["date", "dryStatus"]].sort_values("date").copy()
-    end_naive = pd.Timestamp(end_dt)
-    if end_naive.tzinfo:
-        end_naive = end_naive.tz_localize(None)
-
-    run_id = (s["dryStatus"] != s["dryStatus"].shift()).cumsum()
-    segs = s.groupby(run_id).agg(start=("date", "first"), value=("dryStatus", "last")).reset_index(drop=True)
-    segs["end"] = segs["start"].shift(-1)
-    segs.loc[segs["end"].isna(), "end"] = end_naive
-    segs = segs[segs["end"] > segs["start"]]
-    segs["track"] = "dryStatus (v2)"
-    segs["label"] = segs["value"]
-    return segs[["start", "end", "track", "label"]]
-
-
-
-# ========= 🧭 Mapping + loaders frise modes =========
-# ========= 🧭 Mappings V1/V2 =========
-# V1 -> workingMode
-WORKING_MODE_V1 = {
-    0: "Idle",
-    1: "PV Check",
-    2: "Standby",
-    3: "Selfcheck",
-    4: "Inverter_wait",
-    5: "OffGridInverter",
-    6: "OnGridPassby",
-    7: "OnGridCharge",
-    8: "OnGridDischarge",
-    9: "Fault",
-}
-
-# V2 -> workingMode (détails officiels)
-WORKING_MODE_V2 = {
-    0: "cPowerOnMode",
-    1: "cWaitMode",
-    2: "cBusCheckMode",
-    3: "cPreCheckMode",
-    4: "cRdyOnGridMode",
-    5: "cNormalMode",
-    6: "cFaultMode",
-    7: "Rsv",
-    8: "cFlashMode",
-    9: "cShutdownMode",
-}
-
-# V2 -> mode
-MODE_V2 = {
-    0: "smart",
-    1: "backup",
-    2: "economic",
-    3: "off_grid",
-    4: "reserved",
-    5: "hybrid",
-    6: "hybrid_economic"
-}
-
-def detect_generation(hardware_version: str) -> str:
-    """Retourne 'v2' si la version le suggère, sinon 'v1'."""
-    hv = (str(hardware_version) if hardware_version is not None else "").lower()
-    if "v2" in hv or "ampace_v2" in hv or "gen2" in hv:
-        return "v2"
-    return "v1"
-
-def label_func_factory(track: str, gen: str):
-    """Retourne une fonction qui mappe la valeur -> label selon la piste et la génération."""
-    if track == "mode":
-        mapping = MODE_V2
-    else:  # workingMode
-        mapping = WORKING_MODE_V2 if gen == "v2" else WORKING_MODE_V1
-
-    def _lab(v):
-        try:
-            return mapping.get(int(v), str(v))
-        except Exception:
-            return mapping.get(v, str(v))
-    return _lab
-
-@st.cache_data
-def get_mode_cols(gen: str):
-    """Colonnes présentes et pertinentes selon la génération."""
-    table = client.get_table("beem-data-warehouse.mongodb.battery_status_entity")
-    present = {f.name for f in table.schema}
-    cols = []
-    if "workingMode" in present:
-        cols.append("workingMode")
-    if gen == "v2" and "mode" in present:
-        cols.append("mode")
-    return cols
-
-@st.cache_data
-def load_modes_entity(device_id, start_dt, end_dt, cols):
-    """Charge date + colonnes de mode demandées (datetimes naïves)."""
-    if isinstance(device_id, str) and device_id.isdigit():
-        device_id = int(device_id)
-    if not cols:
-        return pd.DataFrame(columns=["date"])
-
-    select_cols = ", ".join(["date"] + cols)
-    query = f"""
-        SELECT {select_cols}
-        FROM `beem-data-warehouse.mongodb.battery_status_entity`
-        WHERE batteryId = {device_id}
-          AND TIMESTAMP(date) BETWEEN TIMESTAMP('{start_dt}') AND TIMESTAMP('{end_dt}')
-        ORDER BY date
-    """
-    df = client.query(query).to_dataframe()
-    if not df.empty:
-        df["date"] = pd.to_datetime(df["date"], utc=True).dt.tz_localize(None)
-    return df
-
-def _compress_to_segments(df, col, end_dt, label_func):
-    """
-    Transforme une série discrète (col) en segments [start, end).
-    """
-    s = df[["date", col]].dropna().sort_values("date").copy()
-    if s.empty:
-        return pd.DataFrame(columns=["start", "end", "track", "label"])
-
-    s["date"] = pd.to_datetime(s["date"], utc=True).dt.tz_localize(None)
-    end_naive = pd.Timestamp(end_dt)
-    if end_naive.tzinfo:
-        end_naive = end_naive.tz_localize(None)
-
-    run_id = (s[col] != s[col].shift()).cumsum()
-    segs = s.groupby(run_id).agg(start=("date", "first"), value=(col, "last")).reset_index(drop=True)
-    segs["end"] = segs["start"].shift(-1)
-    segs.loc[segs["end"].isna(), "end"] = end_naive
-    segs["track"] = col
-    segs["label"] = [label_func(v) for v in segs["value"]]
-    segs = segs[segs["end"] > segs["start"]]
-    return segs[["start", "end", "track", "label"]]
-
-
-
-#########################"GROS GRAPH combiné"""""########################
-
-st.subheader("📊 Visualisation combinée des mesures")
-
-selected_sources = st.multiselect(
-    "Sélectionne les courbes à afficher :",
-    options=list(sources.keys()),
-    format_func=lambda x: sources[x]["title"],
-    default=list(sources.keys())  # ou [] si tu veux les cacher par défaut
-)
-
-fig = go.Figure()
-
-
-
-
-for table_name in selected_sources:
-    meta = sources[table_name]
-    df = load_data(table_name, selected_device, start_str, end_str)
-
-    if df.empty:
-        st.warning(f"Aucune donnée pour : {meta['title']}")
-        continue
-
-    # 🔧 Si la source est "somme MPPT", on agrège par date
-    if meta["agg"]:
-        # on tolère plusieurs noms possibles de sous-voie selon V1/V2
-        if any(c in df.columns for c in ["deviceSubId", "device_sub_id", "mppt", "mpptId"]):
-            df = df.groupby("date", as_index=False)["value"].sum()
-
-    df = df.sort_values("date")
-    fig.add_trace(go.Scatter(
-        x=df["date"],
-        y=df["value"],
-        mode="lines",
-        name=meta["title"]
-    ))
-
-
-
-
-    
-# Ajout de la ligne verticale du repère
-fig.add_vline(
-    x=repere_datetime,
-    line_width=2,
-    line_dash="dash",
-    line_color="red"
-)
-
-# Ajout d'une annotation manuelle au-dessus de la ligne
-fig.add_annotation(
-    x=repere_datetime,
-    y=1,
-    yref="paper",
-    text=repere_datetime.strftime("%Y-%m-%d %H:%M"),
-    showarrow=False,
-    bgcolor="red",
-    font=dict(color="white"),
-    xanchor="left"
-)
-
-st.subheader("📏 Réglage de l'échelle Y")
-
-max_y = st.number_input(
-    "Valeur maximale de l'axe Y (Wh)",
-    min_value=0,
-    max_value=15000,
-    value=600,
-    step=100
-)
-
-
-fig.update_layout(
-    title="Courbes combinées des mesures",
-    title_y=0.99,
-    xaxis_title=None,        # on masque le titre X ici
-    yaxis_title="Wh",
-    legend_title="Type de mesure",
-    height=600,
-    yaxis=dict(title="Wh", range=[0, max_y]),
-    yaxis2=dict(title="SOC (%)", overlaying="y", side="right", range=[0, 100], ticksuffix="%"),
-    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0)
-)
-
-
-apply_common_time_axis(fig, start_datetime, end_datetime, hide_xticks=False)
-
-
-
-
-st.plotly_chart(fig, use_container_width=True)
 
 # ========== 🔋 Courbes battery_status_entity — multi-séries par axe ==========
 st.subheader("🔋 Mesures battery_status_entity")
@@ -663,6 +404,41 @@ def _aligned_zero_ranges(y_left_series, y_right_series, pad_ratio=0.02):
         return [-neg_ext - pad, pos_ext + pad]
     return make_range(pos1, neg1, f), make_range(pos2, neg2, f)
 
+# ========= 🔋 battery_status_entity : colonnes & loader =========
+@st.cache_data
+def get_status_numeric_cols():
+    """Colonnes numériques de battery_status_entity pour le graphe 'Mesures',
+    en excluant batteryId/date + workingMode/mode (affichés dans la frise)."""
+    table = client.get_table("beem-data-warehouse.mongodb.battery_status_entity")
+    numeric_types = {"INTEGER", "INT64", "FLOAT", "FLOAT64", "NUMERIC", "BIGNUMERIC"}
+    exclude = {"batteryId", "date", "workingMode", "mode", "numberOfCycles", "numberOfModules"}  # <- exclues du graphe
+    cols = [f.name for f in table.schema if f.field_type in numeric_types and f.name not in exclude]
+    cols.sort()
+    return cols
+
+
+@st.cache_data
+def load_status_entity(device_id, start_dt, end_dt, columns):
+    """Charge date + colonnes demandées pour la batterie et la période données."""
+    if isinstance(device_id, str) and device_id.isdigit():
+        device_id = int(device_id)
+
+    # dédoublonne et conserve l'ordre
+    cols = ["date"] + list(dict.fromkeys(columns))
+    select_cols = ", ".join(cols)
+
+    query = f"""
+        SELECT {select_cols}
+        FROM `beem-data-warehouse.mongodb.battery_status_entity`
+        WHERE batteryId = {device_id}
+          AND TIMESTAMP(date) BETWEEN TIMESTAMP('{start_dt}') AND TIMESTAMP('{end_dt}')
+        ORDER BY date
+    """
+    df = client.query(query).to_dataframe()
+    if not df.empty and "date" in df.columns:
+        df["date"] = pd.to_datetime(df["date"], utc=True).dt.tz_localize(None)
+    return df
+
 available_status_cols = get_status_numeric_cols()
 if not available_status_cols:
     st.info("Aucune colonne numérique disponible dans battery_status_entity.")
@@ -736,10 +512,12 @@ else:
 
             # Aligne le 0 entre les deux axes en tenant compte de toutes les séries de chaque axe
             import pandas as _pd
+            def _aligned_zero_ranges_local(y_left_series, y_right_series):
+                return _aligned_zero_ranges(y_left_series, y_right_series)
             y_left_series  = _pd.concat([df_status[c] for c in left_cols if c in df_status.columns], ignore_index=True) if left_cols else _pd.Series([0])
             y_right_series = _pd.concat([df_status[c] for c in right_cols if c in df_status.columns], ignore_index=True) if right_cols else _pd.Series([0])
 
-            rng_left, rng_right = _aligned_zero_ranges(y_left_series, y_right_series)
+            rng_left, rng_right = _aligned_zero_ranges_local(y_left_series, y_right_series)
             yaxis_left.update(range=rng_left)
             yaxis_right.update(range=rng_right)
             yaxis_left.pop("ticksuffix", None)
@@ -767,16 +545,131 @@ else:
                 st.warning("Axe droit : unités différentes détectées (graphique OK mais moins lisible).")
 
 
-
-
-
-
 # ========== 🧭 Frise temporelle des modes ==========
 st.subheader("🧭 Frise temporelle des modes")
 
 # Détecte génération à partir des infos du device sélectionné
 hw_version = device_info["hardware_version"].values[0] if "hardware_version" in device_info.columns else None
+
+def detect_generation(hardware_version: str) -> str:
+    """Retourne 'v2' si la version le suggère, sinon 'v1'."""
+    hv = (str(hardware_version) if hardware_version is not None else "").lower()
+    if "v2" in hv or "ampace_v2" in hv or "gen2" in hv:
+        return "v2"
+    return "v1"
+
 gen = detect_generation(hw_version)
+
+# ========= 🧭 Mappings V1/V2 =========
+# V1 -> workingMode
+WORKING_MODE_V1 = {
+    0: "Idle",
+    1: "PV Check",
+    2: "Standby",
+    3: "Selfcheck",
+    4: "Inverter_wait",
+    5: "OffGridInverter",
+    6: "OnGridPassby",
+    7: "OnGridCharge",
+    8: "OnGridDischarge",
+    9: "Fault",
+}
+
+# V2 -> workingMode (détails officiels)
+WORKING_MODE_V2 = {
+    0: "cPowerOnMode",
+    1: "cWaitMode",
+    2: "cBusCheckMode",
+    3: "cPreCheckMode",
+    4: "cRdyOnGridMode",
+    5: "cNormalMode",
+    6: "cFaultMode",
+    7: "Rsv",
+    8: "cFlashMode",
+    9: "cShutdownMode",
+}
+
+# V2 -> mode
+MODE_V2 = {
+    0: "smart",
+    1: "backup",
+    2: "economic",
+    3: "off_grid",
+    4: "reserved",
+    5: "hybrid",
+    6: "hybrid_economic"
+}
+
+
+def label_func_factory(track: str, gen: str):
+    """Retourne une fonction qui mappe la valeur -> label selon la piste et la génération."""
+    if track == "mode":
+        mapping = MODE_V2
+    else:  # workingMode
+        mapping = WORKING_MODE_V2 if gen == "v2" else WORKING_MODE_V1
+
+    def _lab(v):
+        try:
+            return mapping.get(int(v), str(v))
+        except Exception:
+            return mapping.get(v, str(v))
+    return _lab
+
+@st.cache_data
+def get_mode_cols(gen: str):
+    """Colonnes présentes et pertinentes selon la génération."""
+    table = client.get_table("beem-data-warehouse.mongodb.battery_status_entity")
+    present = {f.name for f in table.schema}
+    cols = []
+    if "workingMode" in present:
+        cols.append("workingMode")
+    if gen == "v2" and "mode" in present:
+        cols.append("mode")
+    return cols
+
+@st.cache_data
+def load_modes_entity(device_id, start_dt, end_dt, cols):
+    """Charge date + colonnes de mode demandées (datetimes naïves)."""
+    if isinstance(device_id, str) and device_id.isdigit():
+        device_id = int(device_id)
+    if not cols:
+        return pd.DataFrame(columns=["date"])
+
+    select_cols = ", ".join(["date"] + cols)
+    query = f"""
+        SELECT {select_cols}
+        FROM `beem-data-warehouse.mongodb.battery_status_entity`
+        WHERE batteryId = {device_id}
+          AND TIMESTAMP(date) BETWEEN TIMESTAMP('{start_dt}') AND TIMESTAMP('{end_dt}')
+        ORDER BY date
+    """
+    df = client.query(query).to_dataframe()
+    if not df.empty:
+        df["date"] = pd.to_datetime(df["date"], utc=True).dt.tz_localize(None)
+    return df
+
+
+def _compress_to_segments(df, col, end_dt, label_func):
+    """
+    Transforme une série discrète (col) en segments [start, end).
+    """
+    s = df[["date", col]].dropna().sort_values("date").copy()
+    if s.empty:
+        return pd.DataFrame(columns=["start", "end", "track", "label"])
+
+    s["date"] = pd.to_datetime(s["date"], utc=True).dt.tz_localize(None)
+    end_naive = pd.Timestamp(end_dt)
+    if end_naive.tzinfo:
+        end_naive = end_naive.tz_localize(None)
+
+    run_id = (s[col] != s[col].shift()).cumsum()
+    segs = s.groupby(run_id).agg(start=("date", "first"), value=(col, "last")).reset_index(drop=True)
+    segs["end"] = segs["start"].shift(-1)
+    segs.loc[segs["end"].isna(), "end"] = end_naive
+    segs["track"] = col
+    segs["label"] = [label_func(v) for v in segs["value"]]
+    segs = segs[segs["end"] > segs["start"]]
+    return segs[["start", "end", "track", "label"]]
 
 # Prépare la figure et le mapping (définis ici, en dehors de la création conditionnelle)
 fig_mode = None
@@ -857,6 +750,54 @@ st.subheader("🧵 Frise temporelle — dryStatus (v2)")
 if detect_generation(device_info["hardware_version"].values[0] if "hardware_version" in device_info.columns else None) != "v2":
     st.info("dryStatus est disponible uniquement pour les batteries v2.")
 else:
+    @st.cache_data
+    def load_dry_status_entity(device_id, start_dt, end_dt):
+        """
+        Charge date + dryStatus (normalisé en 'On' / 'Off' / 'Null') pour V2.
+        """
+        if isinstance(device_id, str) and device_id.isdigit():
+            device_id = int(device_id)
+
+        query = f"""
+            SELECT
+              date,
+              CASE
+                WHEN dryStatus IS NULL THEN 'Null'
+                WHEN LOWER(CAST(dryStatus AS STRING)) IN ('on','true','1')  THEN 'On'
+                WHEN LOWER(CAST(dryStatus AS STRING)) IN ('off','false','0') THEN 'Off'
+                ELSE 'Null'
+              END AS dryStatus
+            FROM `beem-data-warehouse.mongodb.battery_status_entity`
+            WHERE batteryId = {device_id}
+              AND TIMESTAMP(date) BETWEEN TIMESTAMP('{start_dt}') AND TIMESTAMP('{end_dt}')
+            ORDER BY date
+        """
+        df = client.query(query).to_dataframe()
+        if not df.empty:
+            df["date"] = pd.to_datetime(df["date"], utc=True).dt.tz_localize(None)
+        return df
+
+    def _compress_dry_to_segments(df, end_dt):
+        """
+        Transforme la série dryStatus ('On'/'Off'/'Null') en segments [start, end).
+        """
+        if df.empty or "dryStatus" not in df.columns:
+            return pd.DataFrame(columns=["start", "end", "track", "label"])
+
+        s = df[["date", "dryStatus"]].sort_values("date").copy()
+        end_naive = pd.Timestamp(end_dt)
+        if end_naive.tzinfo:
+            end_naive = end_naive.tz_localize(None)
+
+        run_id = (s["dryStatus"] != s["dryStatus"].shift()).cumsum()
+        segs = s.groupby(run_id).agg(start=("date", "first"), value=("dryStatus", "last")).reset_index(drop=True)
+        segs["end"] = segs["start"].shift(-1)
+        segs.loc[segs["end"].isna(), "end"] = end_naive
+        segs = segs[segs["end"] > segs["start"]]
+        segs["track"] = "dryStatus (v2)"
+        segs["label"] = segs["value"]
+        return segs[["start", "end", "track", "label"]]
+
     df_dry = load_dry_status_entity(selected_device, start_str, end_str)
     if df_dry.empty:
         st.info("Aucune donnée dryStatus sur cette période.")
@@ -908,20 +849,12 @@ def load_logs_all(device_id):
 # Charger les logs si ce n’est pas déjà fait
 df_logs_all = load_logs_all(selected_device)
 
-
-
-
-
 # Appliquer les mêmes filtres temporels + types sélectionnés (on met tout par défaut ici)
 df_logs_chart = df_logs_all.copy()
 df_logs_chart = df_logs_all[
     (df_logs_all["date"] >= start_datetime) &
     (df_logs_all["date"] <= end_datetime)
 ].copy()
-
-
-
-
 
 # Optionnel : filtrer par type (affiche tout par défaut)
 log_types_to_show = ["fault", "warning"]  # ou lis depuis type_filter si tu veux réutiliser la sélection utilisateur
@@ -964,9 +897,6 @@ else:
     fig_logs.add_hline(y=1, line_width=6, line_color="rgba(255,255,255,0.25)")
     fig_logs.add_hline(y=2, line_width=6, line_color="rgba(255,255,255,0.25)")
 
-
-
-
     st.plotly_chart(fig_logs, use_container_width=True)
 
 
@@ -992,14 +922,10 @@ else:
          key="type_filter_main"
         )
 
-    
-
     df_filtered = df_logs_all.copy()
 
     if type_filter:
         df_filtered = df_filtered[df_filtered["type"].isin(type_filter)]
-
-   
 
     # ordre voulu des colonnes avec "code" entre "date" et "type"
     cols = ["date", "code", "type", "message", "cleared", "cleared_at", "cleared_by"]
